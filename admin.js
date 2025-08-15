@@ -1,192 +1,411 @@
-const express = require('express');
-const { body, validationResult } = require('express-validator');
-const { pool, getContentBySection, updateContent } = require('../database/database');
+// Client-side Admin Panel JavaScript
+// This file runs in the browser and communicates with the server via API calls
 
-const router = express.Router();
+class AdminPanel {
+    constructor() {
+        this.token = localStorage.getItem('adminToken');
+        this.apiBase = '/api';
+        this.init();
+    }
 
-// Get all website content
-router.get('/content', authenticateToken, async (req, res) => {
-    try {
-        const client = await pool.connect();
+    init() {
+        this.setupEventListeners();
+        this.checkAuthStatus();
+        this.loadContent();
+    }
+
+    setupEventListeners() {
+        // Login
+        document.getElementById('loginBtn').addEventListener('click', () => this.handleLogin());
         
-        const result = await client.query('SELECT section, field, value FROM website_content ORDER BY section, field');
-        client.release();
+        // Tab navigation
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => this.switchTab(e.target.dataset.tab));
+        });
+
+        // Content management
+        document.getElementById('saveContentBtn').addEventListener('click', () => this.saveContent());
         
-        // Organize content by sections
-        const content = {};
-        result.rows.forEach(row => {
-            if (!content[row.section]) {
-                content[row.section] = {};
+        // Image management
+        document.getElementById('uploadImagesBtn').addEventListener('click', () => this.uploadImages());
+        
+        // Settings
+        document.getElementById('saveSettingsBtn').addEventListener('click', () => this.saveSettings());
+        document.getElementById('changePasswordBtn').addEventListener('click', () => this.changePassword());
+        document.getElementById('exportDataBtn').addEventListener('click', () => this.exportData());
+        document.getElementById('importDataBtn').addEventListener('click', () => this.importData());
+
+        // Logout (add logout button if needed)
+        this.addLogoutButton();
+    }
+
+    addLogoutButton() {
+        const header = document.querySelector('.admin-header');
+        const logoutBtn = document.createElement('button');
+        logoutBtn.textContent = 'Logout';
+        logoutBtn.className = 'logout-btn';
+        logoutBtn.addEventListener('click', () => this.logout());
+        header.appendChild(logoutBtn);
+    }
+
+    async handleLogin() {
+        const email = document.getElementById('adminEmail').value;
+        const password = document.getElementById('adminPassword').value;
+
+        if (!email || !password) {
+            this.showMessage('Please enter both email and password', 'error');
+            return;
+        }
+
+        try {
+            const response = await fetch(`${this.apiBase}/auth/login`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.token = data.token;
+                localStorage.setItem('adminToken', this.token);
+                this.showMessage('Login successful!', 'success');
+                this.showAdminPanel();
+                this.loadContent();
+            } else {
+                this.showMessage(data.error || 'Login failed', 'error');
             }
-            content[row.section][row.field] = row.value;
+        } catch (error) {
+            console.error('Login error:', error);
+            this.showMessage('Login failed. Please try again.', 'error');
+        }
+    }
+
+    checkAuthStatus() {
+        if (this.token) {
+            this.showAdminPanel();
+        } else {
+            this.showLoginSection();
+        }
+    }
+
+    showLoginSection() {
+        document.getElementById('loginSection').style.display = 'block';
+        document.getElementById('adminPanel').style.display = 'none';
+    }
+
+    showAdminPanel() {
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+    }
+
+    switchTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.remove('active');
         });
         
-        res.json({ content });
-    } catch (error) {
-        console.error('❌ Error fetching content:', error);
-        res.status(500).json({ error: 'Failed to fetch content' });
-    }
-});
-
-// Update website content
-router.put('/content', authenticateToken, [
-    body('content').isObject(),
-    body('content.*').isObject()
-], async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { content } = req.body;
-        let totalUpdated = 0;
-        
-        for (const [section, fields] of Object.entries(content)) {
-            const updatedCount = await updateContent(section, fields);
-            totalUpdated += updatedCount;
-        }
-        
-        res.json({ 
-            message: 'Content updated successfully', 
-            updatedCount: totalUpdated 
+        // Remove active class from all tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
         });
-    } catch (error) {
-        console.error('❌ Error updating content:', error);
-        res.status(500).json({ error: 'Failed to update content' });
-    }
-});
 
-// Get specific section content
-router.get('/content/:section', authenticateToken, async (req, res) => {
-    try {
-        const { section } = req.params;
-        const content = await getContentBySection(section);
-        res.json({ section, content });
-    } catch (error) {
-        console.error(`❌ Error fetching ${section} content:`, error);
-        res.status(500).json({ error: `Failed to fetch ${section} content` });
-    }
-});
-
-// Update specific section
-router.put('/content/:section', authenticateToken, [
-    body().isObject()
-], async (req, res) => {
-    try {
-        const errors = validationResult(req);
-        if (!errors.isEmpty()) {
-            return res.status(400).json({ errors: errors.array() });
-        }
-
-        const { section } = req.params;
-        const updates = req.body;
+        // Show selected tab
+        document.getElementById(`${tabName}Tab`).classList.add('active');
         
-        const updatedCount = await updateContent(section, updates);
-        
-        res.json({ 
-            message: `${section} section updated successfully`,
-            updatedCount
-        });
-    } catch (error) {
-        console.error(`❌ Error updating ${section} content:`, error);
-        res.status(500).json({ error: `Failed to update ${section} content` });
+        // Add active class to clicked button
+        event.target.classList.add('active');
     }
-});
 
-// Export website data
-router.get('/export', authenticateToken, async (req, res) => {
-    try {
-        const client = await pool.connect();
-        const result = await client.query('SELECT section, field, value FROM website_content ORDER BY section, field');
-        client.release();
-        
-        // Organize content by sections
-        const content = {};
-        result.rows.forEach(row => {
-            if (!content[row.section]) {
-                content[row.section] = {};
+    async loadContent() {
+        if (!this.token) return;
+
+        try {
+            const response = await fetch(`${this.apiBase}/admin/content`, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.populateFormFields(data.content);
+            } else {
+                console.error('Failed to load content');
             }
-            content[row.section][row.field] = row.value;
-        });
-        
-        const exportData = {
-            exportDate: new Date().toISOString(),
-            version: '1.0.0',
-            content: content
+        } catch (error) {
+            console.error('Error loading content:', error);
+        }
+    }
+
+    populateFormFields(content) {
+        // Hero Section
+        if (content.hero) {
+            if (content.hero.heading) document.getElementById('heroHeading').value = content.hero.heading;
+            if (content.hero.subtitle) document.getElementById('heroSubtitle').value = content.hero.subtitle;
+            if (content.hero.button) document.getElementById('heroButton').value = content.hero.button;
+        }
+
+        // About Section
+        if (content.about) {
+            if (content.about.title) document.getElementById('aboutTitle').value = content.about.title;
+            if (content.about.story1) document.getElementById('aboutStory1').value = content.about.story1;
+            if (content.about.story2) document.getElementById('aboutStory2').value = content.about.story2;
+        }
+
+        // Features
+        if (content.features) {
+            if (content.features.feature1_title) document.getElementById('feature1Title').value = content.features.feature1_title;
+            if (content.features.feature1_desc) document.getElementById('feature1Desc').value = content.features.feature1_desc;
+            if (content.features.feature2_title) document.getElementById('feature2Title').value = content.features.feature2_title;
+            if (content.features.feature2_desc) document.getElementById('feature2Desc').value = content.features.feature2_desc;
+            if (content.features.feature3_title) document.getElementById('feature3Title').value = content.features.feature3_title;
+            if (content.features.feature3_desc) document.getElementById('feature3Desc').value = content.features.feature3_desc;
+        }
+
+        // Coffee Products
+        if (content.coffee) {
+            if (content.coffee.light_roast_title) document.getElementById('lightRoastTitle').value = content.coffee.light_roast_title;
+            if (content.coffee.light_roast_desc) document.getElementById('lightRoastDesc').value = content.coffee.light_roast_desc;
+            if (content.coffee.light_roast_price) document.getElementById('lightRoastPrice').value = content.coffee.light_roast_price;
+            if (content.coffee.medium_roast_title) document.getElementById('mediumRoastTitle').value = content.coffee.medium_roast_title;
+            if (content.coffee.medium_roast_desc) document.getElementById('mediumRoastDesc').value = content.coffee.medium_roast_desc;
+            if (content.coffee.medium_roast_price) document.getElementById('mediumRoastPrice').value = content.coffee.medium_roast_price;
+            if (content.coffee.dark_roast_title) document.getElementById('darkRoastTitle').value = content.coffee.dark_roast_title;
+            if (content.coffee.dark_roast_desc) document.getElementById('darkRoastDesc').value = content.coffee.dark_roast_desc;
+            if (content.coffee.dark_roast_price) document.getElementById('darkRoastPrice').value = content.coffee.dark_roast_price;
+        }
+
+        // Contact Information
+        if (content.contact) {
+            if (content.contact.address) document.getElementById('contactAddress').value = content.contact.address;
+            if (content.contact.city) document.getElementById('contactCity').value = content.contact.city;
+            if (content.contact.phone) document.getElementById('contactPhone').value = content.contact.phone;
+            if (content.contact.email) document.getElementById('contactEmail').value = content.contact.email;
+            if (content.contact.hours1) document.getElementById('contactHours1').value = content.contact.hours1;
+            if (content.contact.hours2) document.getElementById('contactHours2').value = content.contact.hours2;
+            if (content.contact.hours3) document.getElementById('contactHours3').value = content.contact.hours3;
+        }
+
+        // Settings
+        if (content.settings) {
+            if (content.settings.website_title) document.getElementById('websiteTitle').value = content.settings.website_title;
+            if (content.settings.company_name) document.getElementById('companyName').value = content.settings.company_name;
+        }
+    }
+
+    async saveContent() {
+        if (!this.token) return;
+
+        const content = {
+            hero: {
+                heading: document.getElementById('heroHeading').value,
+                subtitle: document.getElementById('heroSubtitle').value,
+                button: document.getElementById('heroButton').value
+            },
+            about: {
+                title: document.getElementById('aboutTitle').value,
+                story1: document.getElementById('aboutStory1').value,
+                story2: document.getElementById('aboutStory2').value
+            },
+            features: {
+                feature1_title: document.getElementById('feature1Title').value,
+                feature1_desc: document.getElementById('feature1Desc').value,
+                feature2_title: document.getElementById('feature2Title').value,
+                feature2_desc: document.getElementById('feature2Desc').value,
+                feature3_title: document.getElementById('feature3Title').value,
+                feature3_desc: document.getElementById('feature3Desc').value
+            },
+            coffee: {
+                light_roast_title: document.getElementById('lightRoastTitle').value,
+                light_roast_desc: document.getElementById('lightRoastDesc').value,
+                light_roast_price: document.getElementById('lightRoastPrice').value,
+                medium_roast_title: document.getElementById('mediumRoastTitle').value,
+                medium_roast_desc: document.getElementById('mediumRoastDesc').value,
+                medium_roast_price: document.getElementById('mediumRoastPrice').value,
+                dark_roast_title: document.getElementById('darkRoastTitle').value,
+                dark_roast_desc: document.getElementById('darkRoastDesc').value,
+                dark_roast_price: document.getElementById('darkRoastPrice').value
+            },
+            contact: {
+                address: document.getElementById('contactAddress').value,
+                city: document.getElementById('contactCity').value,
+                phone: document.getElementById('contactPhone').value,
+                email: document.getElementById('contactEmail').value,
+                hours1: document.getElementById('contactHours1').value,
+                hours2: document.getElementById('contactHours2').value,
+                hours3: document.getElementById('contactHours3').value
+            },
+            settings: {
+                website_title: document.getElementById('websiteTitle').value,
+                company_name: document.getElementById('companyName').value
+            }
         };
 
-        res.setHeader('Content-Type', 'application/json');
-        res.setHeader('Content-Disposition', 'attachment; filename="red-dirt-roasters-data.json"');
-        res.json(exportData);
-    } catch (error) {
-        console.error('❌ Export error:', error);
-        res.status(500).json({ error: 'Failed to export data' });
-    }
-});
+        try {
+            const response = await fetch(`${this.apiBase}/admin/content`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ content })
+            });
 
-// Import website data
-router.post('/import', authenticateToken, async (req, res) => {
-    try {
-        const { content } = req.body;
-        
-        if (!content || typeof content !== 'object') {
-            return res.status(400).json({ error: 'Invalid import data format' });
+            if (response.ok) {
+                this.showMessage('Content saved successfully!', 'success');
+            } else {
+                const data = await response.json();
+                this.showMessage(data.error || 'Failed to save content', 'error');
+            }
+        } catch (error) {
+            console.error('Error saving content:', error);
+            this.showMessage('Failed to save content. Please try again.', 'error');
+        }
+    }
+
+    async uploadImages() {
+        // Image upload functionality would go here
+        this.showMessage('Image upload functionality coming soon!', 'info');
+    }
+
+    async saveSettings() {
+        // Settings save functionality would go here
+        this.showMessage('Settings saved!', 'success');
+    }
+
+    async changePassword() {
+        const currentPassword = document.getElementById('currentPassword').value;
+        const newPassword = document.getElementById('newPassword').value;
+
+        if (!currentPassword || !newPassword) {
+            this.showMessage('Please enter both current and new passwords', 'error');
+            return;
         }
 
-        let totalImported = 0;
-        
-        for (const [section, fields] of Object.entries(content)) {
-            const updatedCount = await updateContent(section, fields);
-            totalImported += updatedCount;
+        try {
+            const response = await fetch(`${this.apiBase}/auth/change-password`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ currentPassword, newPassword })
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                this.showMessage('Password changed successfully!', 'success');
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+            } else {
+                this.showMessage(data.error || 'Failed to change password', 'error');
+            }
+        } catch (error) {
+            console.error('Error changing password:', error);
+            this.showMessage('Failed to change password. Please try again.', 'error');
         }
-        
-        res.json({ 
-            message: 'Data imported successfully', 
-            importedCount: totalImported 
-        });
-    } catch (error) {
-        console.error('❌ Import error:', error);
-        res.status(500).json({ error: 'Failed to import data' });
     }
-});
 
-// Get admin dashboard stats
-router.get('/dashboard', authenticateToken, async (req, res) => {
-    try {
-        const client = await pool.connect();
-        
-        // Get content count by section
-        const sectionStats = await client.query(`
-            SELECT section, COUNT(*) as count 
-            FROM website_content 
-            GROUP BY section
-        `);
+    async exportData() {
+        try {
+            const response = await fetch(`${this.apiBase}/admin/export`, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
 
-        // Get recent updates
-        const recentUpdates = await client.query(`
-            SELECT section, field, updated_at 
-            FROM website_content 
-            ORDER BY updated_at DESC 
-            LIMIT 10
-        `);
-
-        // Get total content count
-        const totalCount = await client.query('SELECT COUNT(*) as count FROM website_content');
-        
-        client.release();
-
-        res.json({
-            stats: {
-                totalContent: parseInt(totalCount.rows[0].count),
-                sections: sectionStats.rows
-            },
-            recentUpdates: recentUpdates.rows
-        });
-    } catch (error) {
-        console.error('❌ Dashboard error:', error);
-        res.status(500).json({ error: 'Failed to fetch dashboard data' });
+            if (response.ok) {
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'red-dirt-roasters-data.json';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                this.showMessage('Data exported successfully!', 'success');
+            } else {
+                this.showMessage('Failed to export data', 'error');
+            }
+        } catch (error) {
+            console.error('Error exporting data:', error);
+            this.showMessage('Failed to export data. Please try again.', 'error');
+        }
     }
-});
 
-module.exports = router;
+    async importData() {
+        const fileInput = document.getElementById('importFile');
+        const file = fileInput.files[0];
+
+        if (!file) {
+            this.showMessage('Please select a file to import', 'error');
+            return;
+        }
+
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text);
+
+            if (!data.content) {
+                this.showMessage('Invalid file format', 'error');
+                return;
+            }
+
+            const response = await fetch(`${this.apiBase}/admin/import`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ content: data.content })
+            });
+
+            if (response.ok) {
+                this.showMessage('Data imported successfully!', 'success');
+                this.loadContent(); // Reload the form with new data
+                fileInput.value = ''; // Clear the file input
+            } else {
+                const responseData = await response.json();
+                this.showMessage(responseData.error || 'Failed to import data', 'error');
+            }
+        } catch (error) {
+            console.error('Error importing data:', error);
+            this.showMessage('Failed to import data. Please try again.', 'error');
+        }
+    }
+
+    logout() {
+        this.token = null;
+        localStorage.removeItem('adminToken');
+        this.showLoginSection();
+        this.showMessage('Logged out successfully', 'success');
+    }
+
+    showMessage(message, type = 'info') {
+        // Create a simple message display
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message message-${type}`;
+        messageDiv.textContent = message;
+        
+        // Add to the page
+        document.body.appendChild(messageDiv);
+        
+        // Remove after 3 seconds
+        setTimeout(() => {
+            if (messageDiv.parentNode) {
+                messageDiv.parentNode.removeChild(messageDiv);
+            }
+        }, 3000);
+    }
+}
+
+// Initialize the admin panel when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    new AdminPanel();
+});

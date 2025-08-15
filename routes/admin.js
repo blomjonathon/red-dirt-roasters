@@ -93,90 +93,42 @@ router.put('/content/:section', authenticateToken, [
 
         const { section } = req.params;
         const updates = req.body;
-        const db = getDb();
 
-        // Execute updates for the specific section
-        await new Promise((resolve, reject) => {
-            db.serialize(() => {
-                const stmt = db.prepare(
-                    'INSERT OR REPLACE INTO website_content (section, field, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)'
-                );
-
-                Object.entries(updates).forEach(([field, value]) => {
-                    stmt.run(section, field, value);
-                });
-
-                stmt.finalize((err) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
-        });
-
-        res.json({ message: `${section} section updated successfully` });
-    } catch (error) {
-        console.error('Update section error:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
-// Get specific section content
-router.get('/content/:section', authenticateToken, async (req, res) => {
-    try {
-        const { section } = req.params;
-        const db = getDb();
+        const updatedCount = await updateContent(section, updates);
         
-        const content = await new Promise((resolve, reject) => {
-            db.all(
-                'SELECT field, value FROM website_content WHERE section = ? ORDER BY field',
-                [section],
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                }
-            );
+        res.json({ 
+            message: `${section} section updated successfully`,
+            updatedCount
         });
-
-        // Organize content by fields
-        const sectionContent = {};
-        content.forEach(item => {
-            sectionContent[item.field] = item.value;
-        });
-
-        res.json({ section, content: sectionContent });
     } catch (error) {
-        console.error('Get section error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error(`Error updating ${section} content:`, error);
+        res.status(500).json({ error: `Failed to update ${section} content` });
     }
 });
 
 // Export website data
 router.get('/export', authenticateToken, async (req, res) => {
     try {
-        const db = getDb();
-        const content = await new Promise((resolve, reject) => {
-            db.all(
-                'SELECT section, field, value FROM website_content ORDER BY section, field',
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
+        // Get content for all sections
+        const sections = ['hero', 'about', 'features', 'coffee', 'contact', 'settings'];
+        const allContent = {};
+        
+        for (const section of sections) {
+            try {
+                const content = await getContentBySection(section);
+                if (Object.keys(content).length > 0) {
+                    allContent[section] = content;
                 }
-            );
-        });
-
-        // Organize content by sections
-        const organizedContent = {};
-        content.forEach(item => {
-            if (!organizedContent[item.section]) {
-                organizedContent[item.section] = {};
+            } catch (error) {
+                console.warn(`Failed to get ${section} content for export:`, error.message);
+                // Continue with other sections
             }
-            organizedContent[item.section][item.field] = item.value;
-        });
+        }
 
         const exportData = {
             exportDate: new Date().toISOString(),
             version: '1.0.0',
-            content: organizedContent
+            content: allContent
         };
 
         res.setHeader('Content-Type', 'application/json');
@@ -184,7 +136,7 @@ router.get('/export', authenticateToken, async (req, res) => {
         res.json(exportData);
     } catch (error) {
         console.error('Export error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Failed to export data' });
     }
 });
 
@@ -197,92 +149,60 @@ router.post('/import', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Invalid import data format' });
         }
 
-        const db = getDb();
-        const updates = [];
-
-        // Prepare all updates
+        let totalImported = 0;
+        
         for (const [section, fields] of Object.entries(content)) {
-            for (const [field, value] of Object.entries(fields)) {
-                updates.push({ section, field, value });
+            try {
+                const updatedCount = await updateContent(section, fields);
+                totalImported += updatedCount;
+            } catch (error) {
+                console.error(`Failed to import ${section}:`, error);
+                // Continue with other sections
             }
         }
-
-        // Execute updates
-        await new Promise((resolve, reject) => {
-            db.serialize(() => {
-                const stmt = db.prepare(
-                    'INSERT OR REPLACE INTO website_content (section, field, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)'
-                );
-
-                updates.forEach(({ section, field, value }) => {
-                    stmt.run(section, field, value);
-                });
-
-                stmt.finalize((err) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
-        });
-
+        
         res.json({ 
             message: 'Data imported successfully', 
-            importedCount: updates.length 
+            importedCount: totalImported 
         });
     } catch (error) {
         console.error('Import error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Failed to import data' });
     }
 });
 
 // Get admin dashboard stats
 router.get('/dashboard', authenticateToken, async (req, res) => {
     try {
-        const db = getDb();
+        // Get content for all sections to count items
+        const sections = ['hero', 'about', 'features', 'coffee', 'contact', 'settings'];
+        const sectionStats = [];
+        let totalContent = 0;
         
-        // Get content count by section
-        const sectionStats = await new Promise((resolve, reject) => {
-            db.all(
-                'SELECT section, COUNT(*) as count FROM website_content GROUP BY section',
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
+        for (const section of sections) {
+            try {
+                const content = await getContentBySection(section);
+                const count = Object.keys(content).length;
+                if (count > 0) {
+                    sectionStats.push({ section, count });
+                    totalContent += count;
                 }
-            );
-        });
-
-        // Get recent updates
-        const recentUpdates = await new Promise((resolve, reject) => {
-            db.all(
-                'SELECT section, field, updated_at FROM website_content ORDER BY updated_at DESC LIMIT 10',
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
-                }
-            );
-        });
-
-        // Get total content count
-        const totalCount = await new Promise((resolve, reject) => {
-            db.get(
-                'SELECT COUNT(*) as count FROM website_content',
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row.count);
-                }
-            );
-        });
+            } catch (error) {
+                console.warn(`Failed to get ${section} stats:`, error.message);
+                // Continue with other sections
+            }
+        }
 
         res.json({
             stats: {
-                totalContent: totalCount,
+                totalContent,
                 sections: sectionStats
             },
-            recentUpdates
+            recentUpdates: [] // This could be enhanced later with actual update tracking
         });
     } catch (error) {
         console.error('Dashboard error:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: 'Failed to fetch dashboard data' });
     }
 });
 
