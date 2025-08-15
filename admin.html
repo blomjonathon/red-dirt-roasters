@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Red Dirt Roasters - Admin Panel</title>
+    <link rel="stylesheet" href="admin.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <header class="admin-header">
+            <h1>Red Dirt Roasters Admin Panel</h1>
+            <p>Manage your website content easily</p>
+        </header>
+
+        <!-- Login Section -->
+        <div id="loginSection" class="login-section">
+            <div class="login-form">
+                <h2>Admin Login</h2>
+                <input type="password" id="adminPassword" placeholder="Enter admin password" />
+                <button onclick="login()" class="login-btn">Login</button>
+                <p class="note">Default password: admin123</p>
+            </div>
+        </div>
+
+        <!-- Admin Panel (Hidden until login) -->
+        <div id="adminPanel" class="admin-panel" style="display: none;">
+            <!-- Navigation Tabs -->
+            <nav class="admin-nav">
+                <button class="tab-btn active" onclick="showTab('content')">Content</button>
+                <button class="tab-btn" onclick="showTab('images')">Images</button>
+                <button class="tab-btn" onclick="showTab('settings')">Settings</button>
+            </nav>
+
+            <!-- Content Tab -->
+            <div id="contentTab" class="tab-content active">
+                <h2>Edit Website Content</h2>
+                
+                <!-- Hero Section -->
+                <div class="content-section">
+                    <h3>Hero Section</h3>
+                    <div class="form-group">
+                        <label>Main Heading:</label>
+                        <input type="text" id="heroHeading" placeholder="Artisan Coffee Roasting" />
+                    </div>
+                    <div class="form-group">
+                        <label>Subtitle:</label>
+                        <textarea id="heroSubtitle" placeholder="Small batch, handcrafted coffee roasted with passion in the heart of Oklahoma"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>CTA Button Text:</label>
+                        <input type="text" id="heroButton" placeholder="Explore Our Coffee" />
+                    </div>
+                </div>
+
+                <!-- About Section -->
+                <div class="content-section">
+                    <h3>About Section</h3>
+                    <div class="form-group">
+                        <label>Section Title:</label>
+                        <input type="text" id="aboutTitle" placeholder="Our Story" />
+                    </div>
+                    <div class="form-group">
+                        <label>Story Paragraph 1:</label>
+                        <textarea id="aboutStory1" rows="3" placeholder="Red Dirt Roasters began as a passion project..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Story Paragraph 2:</label>
+                        <textarea id="aboutStory2" rows="3" placeholder="We source the highest quality green coffee beans..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Features -->
+                <div class="content-section">
+                    <h3>Features</h3>
+                    <div class="features-grid">
+                        <div class="feature-item">
+                            <h4>Feature 1</h4>
+                            <input type="text" id="feature1Title" placeholder="Small Batch" />
+                            <textarea id="feature1Desc" placeholder="We roast in small batches to ensure consistency and quality in every cup."></textarea>
+                        </div>
+                        <div class="feature-item">
+                            <h4>Feature 2</h4>
+                            <input type="text" id="feature2Title" placeholder="Fresh Roasted" />
+                            <textarea id="feature2Desc" placeholder="All our coffee is roasted fresh and shipped within 24 hours of roasting."></textarea>
+                        </div>
+                        <div class="feature-item">
+                            <h4>Feature 3</h4>
+                            <input type="text" id="feature3Title" placeholder="Local Business" />
+                            <textarea id="feature3Desc" placeholder="Proudly serving our community with personal attention and care."></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coffee Products -->
+                <div class="content-section">
+                    <h3>Coffee Products</h3>
+                    <div class="coffee-products">
+                        <div class="product-item">
+                            <h4>Light Roast</h4>
+                            <input type="text" id="lightRoastTitle" placeholder="Light Roast" />
+                            <textarea id="lightRoastDesc" placeholder="Bright, crisp flavors with subtle acidity..."></textarea>
+                            <input type="text" id="lightRoastPrice" placeholder="$16.99" />
+                        </div>
+                        <div class="product-item">
+                            <h4>Medium Roast</h4>
+                            <input type="text" id="mediumRoastTitle" placeholder="Medium Roast" />
+                            <textarea id="mediumRoastDesc" placeholder="Balanced body with rich flavors..."></textarea>
+                            <input type="text" id="mediumRoastPrice" placeholder="$17.99" />
+                        </div>
+                        <div class="product-item">
+                            <h4>Dark Roast</h4>
+                            <input type="text" id="darkRoastTitle" placeholder="Dark Roast" />
+                            <textarea id="darkRoastDesc" placeholder="Bold, full-bodied with deep chocolate notes..."></textarea>
+                            <input type="text" id="darkRoastPrice" placeholder="$18.99" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Info -->
+                <div class="content-section">
+                    <h3>Contact Information</h3>
+                    <div class="contact-grid">
+                        <div class="contact-item">
+                            <label>Address:</label>
+                            <input type="text" id="contactAddress" placeholder="123 Coffee Street" />
+                            <input type="text" id="contactCity" placeholder="Oklahoma City, OK 73102" />
+                        </div>
+                        <div class="contact-item">
+                            <label>Phone:</label>
+                            <input type="text" id="contactPhone" placeholder="(405) 555-0123" />
+                        </div>
+                        <div class="contact-item">
+                            <label>Email:</label>
+                            <input type="email" id="contactEmail" placeholder="info@reddirtroasters.com" />
+                        </div>
+                        <div class="contact-item">
+                            <label>Hours:</label>
+                            <input type="text" id="contactHours1" placeholder="Monday - Friday: 7:00 AM - 6:00 PM" />
+                            <input type="text" id="contactHours2" placeholder="Saturday: 8:00 AM - 4:00 PM" />
+                            <input type="text" id="contactHours3" placeholder="Sunday: Closed" />
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="saveContent()" class="save-btn">Save All Changes</button>
+            </div>
+
+            <!-- Images Tab -->
+            <div id="imagesTab" class="tab-content">
+                <h2>Manage Website Images</h2>
+                
+                <div class="image-upload-section">
+                    <h3>Upload New Images</h3>
+                    <div class="upload-grid">
+                        <div class="upload-item">
+                            <label>Hero Background Image:</label>
+                            <input type="file" id="heroImage" accept="image/*" />
+                            <div class="image-preview" id="heroImagePreview"></div>
+                        </div>
+                        <div class="upload-item">
+                            <label>About Section Image:</label>
+                            <input type="file" id="aboutImage" accept="image/*" />
+                            <div class="image-preview" id="aboutImagePreview"></div>
+                        </div>
+                        <div class="upload-item">
+                            <label>Light Roast Image:</label>
+                            <input type="file" id="lightRoastImage" accept="image/*" />
+                            <div class="image-preview" id="lightRoastImagePreview"></div>
+                        </div>
+                        <div class="upload-item">
+                            <label>Medium Roast Image:</label>
+                            <input type="file" id="mediumRoastImage" accept="image/*" />
+                            <div class="image-preview" id="mediumRoastImagePreview"></div>
+                        </div>
+                        <div class="upload-item">
+                            <label>Dark Roast Image:</label>
+                            <input type="file" id="darkRoastImage" accept="image/*" />
+                            <div class="image-preview" id="darkRoastImagePreview"></div>
+                        </div>
+                    </div>
+                    <button onclick="uploadImages()" class="upload-btn">Upload All Images</button>
+                </div>
+
+                <div class="current-images">
+                    <h3>Current Images</h3>
+                    <div class="current-images-grid" id="currentImagesGrid">
+                        <!-- Images will be loaded here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settingsTab" class="tab-content">
+                <h2>Website Settings</h2>
+                
+                <div class="settings-section">
+                    <h3>Basic Settings</h3>
+                    <div class="form-group">
+                        <label>Website Title:</label>
+                        <input type="text" id="websiteTitle" placeholder="Red Dirt Roasters - Artisan Coffee Roasting" />
+                    </div>
+                    <div class="form-group">
+                        <label>Company Name:</label>
+                        <input type="text" id="companyName" placeholder="Red Dirt Roasters" />
+                    </div>
+                    <div class="form-group">
+                        <label>Change Admin Password:</label>
+                        <input type="password" id="newPassword" placeholder="New password" />
+                        <button onclick="changePassword()" class="change-pwd-btn">Change Password</button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <h3>Export/Import</h3>
+                    <button onclick="exportData()" class="export-btn">Export Website Data</button>
+                    <div class="import-section">
+                        <input type="file" id="importFile" accept=".json" />
+                        <button onclick="importData()" class="import-btn">Import Website Data</button>
+                    </div>
+                </div>
+
+                <button onclick="saveSettings()" class="save-btn">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>
