@@ -5,7 +5,7 @@ A secure, database-driven admin panel for managing website content with SQL back
 ## 🚀 Features
 
 - **Secure Authentication**: JWT-based login with bcrypt password hashing
-- **SQL Database**: SQLite backend with organized content management
+- **PostgreSQL Database**: Robust database backend with organized content management
 - **Security Features**: Rate limiting, brute force protection, CSRF protection
 - **Content Management**: Easy editing of all website sections
 - **Data Export/Import**: Backup and restore functionality
@@ -49,8 +49,9 @@ Edit `.env` file with your configuration:
 PORT=3000
 NODE_ENV=development
 
-# Database Configuration
-DB_PATH=./database/red-dirt-roasters.db
+# Database Configuration (PostgreSQL)
+DATABASE_URL=postgresql://username:password@localhost:5432/database_name
+# Alternative: POSTGRES_URL=postgresql://username:password@localhost:5432/database_name
 
 # JWT Configuration
 JWT_SECRET=your-super-secret-jwt-key-change-this-immediately
@@ -190,14 +191,37 @@ red-dirt-roasters/
 
 ## 🚀 Production Deployment
 
+### Render Deployment
+
+1. **Create a PostgreSQL Database on Render:**
+   - Go to your Render dashboard
+   - Create a new PostgreSQL service
+   - Note the connection details
+
+2. **Set Environment Variables on Render:**
+   - `DATABASE_URL`: Your PostgreSQL connection string from Render
+   - `NODE_ENV`: `production`
+   - `JWT_SECRET`: A strong, random secret key
+   - `ADMIN_EMAIL`: Your admin email
+   - `ADMIN_PASSWORD`: Your secure admin password
+   - `BCRYPT_ROUNDS`: `12`
+
+3. **Deploy Your Application:**
+   - Connect your GitHub repository
+   - Set build command: `npm install`
+   - Set start command: `npm start`
+   - Deploy!
+
+### General Production Deployment
+
 ### 1. Environment Variables
 - Set `NODE_ENV=production`
 - Use strong, unique `JWT_SECRET`
-- Configure production database path
+- Configure production database connection
 - Set appropriate CORS origins
 
 ### 2. Database
-- Consider upgrading to MySQL/PostgreSQL for production
+- Use PostgreSQL for production (already configured)
 - Implement regular backups
 - Monitor database performance
 
@@ -226,21 +250,27 @@ red-dirt-roasters/
 
 ### Common Issues
 
-1. **Database Connection Error**
+1. **Database Connection Error (ECONNREFUSED)**
+   - Check `DATABASE_URL` in your environment variables
+   - Ensure PostgreSQL service is running on Render
+   - Verify database credentials and connection string
+   - For Render: Make sure you've created a PostgreSQL service
+
+2. **Database Connection Error (Local Development)**
    - Check database path in .env
    - Ensure database directory exists
    - Run `npm run init-db`
 
-2. **Login Issues**
+3. **Login Issues**
    - Verify email/password in .env
    - Check database initialization
    - Clear browser localStorage
 
-3. **Port Already in Use**
+4. **Port Already in Use**
    - Change PORT in .env
    - Kill existing process on port 3000
 
-4. **CORS Errors**
+5. **CORS Errors**
    - Check CORS configuration in server.js
    - Verify frontend URL matches allowed origins
 

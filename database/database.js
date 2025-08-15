@@ -1,9 +1,15 @@
 const { Pool } = require('pg');
-require('dotenv').config();
+
+// Check if dotenv is available and load it
+try {
+    require('dotenv').config();
+} catch (error) {
+    console.log('dotenv not available, using system environment variables');
+}
 
 // PostgreSQL connection pool
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
     max: 20,
     idleTimeoutMillis: 30000,
@@ -26,6 +32,13 @@ async function testConnection() {
 // Initialize database tables
 async function initDatabase() {
     try {
+        // Check if we have a database connection
+        if (!process.env.DATABASE_URL && !process.env.POSTGRES_URL) {
+            console.log('⚠️  No database URL provided, skipping database initialization');
+            console.log('ℹ️  Set DATABASE_URL or POSTGRES_URL environment variable to enable database features');
+            return true; // Don't crash the app, just skip DB init
+        }
+
         const client = await pool.connect();
         
         // Create users table

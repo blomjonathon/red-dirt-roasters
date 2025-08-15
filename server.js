@@ -81,16 +81,27 @@ app.use((req, res) => {
 // Initialize database and start server
 async function startServer() {
     try {
-        await initDatabase();
-        console.log('Database initialized successfully');
+        // Try to initialize database, but don't crash if it fails
+        try {
+            await initDatabase();
+            console.log('✅ Database initialized successfully');
+        } catch (dbError) {
+            console.warn('⚠️  Database initialization failed, but continuing without database features:');
+            console.warn(dbError.message);
+            console.log('ℹ️  Admin panel and dynamic content features will be limited');
+        }
         
         app.listen(PORT, () => {
-            console.log(`Server running on port ${PORT}`);
-            console.log(`Admin panel: http://localhost:${PORT}/admin.html`);
-            console.log(`Main website: http://localhost:${PORT}/index.html`);
+            console.log(`🚀 Server running on port ${PORT}`);
+            console.log(`🌐 Main website: http://localhost:${PORT}/index.html`);
+            if (process.env.DATABASE_URL || process.env.POSTGRES_URL) {
+                console.log(`🔐 Admin panel: http://localhost:${PORT}/admin.html`);
+            } else {
+                console.log(`⚠️  Admin panel disabled - no database connection`);
+            }
         });
     } catch (error) {
-        console.error('Failed to start server:', error);
+        console.error('❌ Failed to start server:', error);
         process.exit(1);
     }
 }
