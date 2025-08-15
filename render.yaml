@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: red-dirt-roasters-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@reddirtroasters.com
+      - key: ADMIN_PASSWORD
+        generateValue: true
+      - key: BCRYPT_ROUNDS
+        value: 12
+      - key: RATE_LIMIT_WINDOW_MS
+        value: 900000
+      - key: RATE_LIMIT_MAX_REQUESTS
+        value: 100
+      - key: ALLOWED_ORIGINS
+        value: https://yourdomain.com
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+databases:
+  - name: red-dirt-roasters-db
+    databaseName: red_dirt_roasters
+    user: red_dirt_roasters_user
+    plan: free
