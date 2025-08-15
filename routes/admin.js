@@ -1,6 +1,6 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
-const { getDb } = require('../database/database');
+const { getContentBySection, updateContent } = require('../database/database');
 
 const router = express.Router();
 
@@ -26,27 +26,23 @@ function authenticateToken(req, res, next) {
 // Get all website content
 router.get('/content', authenticateToken, async (req, res) => {
     try {
-        const db = getDb();
-        const content = await new Promise((resolve, reject) => {
-            db.all(
-                'SELECT section, field, value, updated_at FROM website_content ORDER BY section, field',
-                (err, rows) => {
-                    if (err) reject(err);
-                    else resolve(rows);
+        // Get content for all sections
+        const sections = ['hero', 'about', 'features', 'coffee', 'contact', 'settings'];
+        const allContent = {};
+        
+        for (const section of sections) {
+            try {
+                const content = await getContentBySection(section);
+                if (Object.keys(content).length > 0) {
+                    allContent[section] = content;
                 }
-            );
-        });
-
-        // Organize content by sections
-        const organizedContent = {};
-        content.forEach(item => {
-            if (!organizedContent[item.section]) {
-                organizedContent[item.section] = {};
+            } catch (error) {
+                console.warn(`Failed to get ${section} content:`, error.message);
+                // Continue with other sections
             }
-            organizedContent[item.section][item.field] = item.value;
-        });
+        }
 
-        res.json({ content: organizedContent });
+        res.json({ content: allContent });
     } catch (error) {
         console.error('Get content error:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -65,35 +61,20 @@ router.put('/content', authenticateToken, [
         }
 
         const { content } = req.body;
-        const db = getDb();
-        const updates = [];
+        let totalUpdated = 0;
 
-        // Prepare all updates
+        // Update each section
         for (const [section, fields] of Object.entries(content)) {
-            for (const [field, value] of Object.entries(fields)) {
-                updates.push({ section, field, value });
+            try {
+                const updatedCount = await updateContent(section, fields);
+                totalUpdated += updatedCount;
+            } catch (error) {
+                console.error(`Failed to update ${section}:`, error);
+                // Continue with other sections
             }
         }
 
-        // Execute updates
-        await new Promise((resolve, reject) => {
-            db.serialize(() => {
-                const stmt = db.prepare(
-                    'INSERT OR REPLACE INTO website_content (section, field, value, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)'
-                );
-
-                updates.forEach(({ section, field, value }) => {
-                    stmt.run(section, field, value);
-                });
-
-                stmt.finalize((err) => {
-                    if (err) reject(err);
-                    else resolve();
-                });
-            });
-        });
-
-        res.json({ message: 'Content updated successfully', updatedCount: updates.length });
+        res.json({ message: 'Content updated successfully', updatedCount: totalUpdated });
     } catch (error) {
         console.error('Update content error:', error);
         res.status(500).json({ error: 'Internal server error' });

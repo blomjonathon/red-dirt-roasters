@@ -2,7 +2,14 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
-const { getDb } = require('../database/database');
+const { 
+    getUserByEmail, 
+    updateUserLastLogin, 
+    recordLoginAttempt, 
+    getRecentLoginAttempts,
+    createSession,
+    deleteSession
+} = require('../database/database');
 
 const router = express.Router();
 
@@ -46,21 +53,9 @@ router.post('/login', loginLimiter, [
         }
 
         const { email, password } = req.body;
-        const db = getDb();
 
         // Check for recent failed login attempts
-        const recentAttempts = await new Promise((resolve, reject) => {
-            db.get(
-                `SELECT COUNT(*) as count FROM login_attempts 
-                 WHERE email = ? AND success = 0 
-                 AND attempted_at > datetime('now', '-15 minutes')`,
-                [email],
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row.count);
-                }
-            );
-        });
+        const recentAttempts = await getRecentLoginAttempts(email, 15);
 
         if (recentAttempts >= 5) {
             return res.status(429).json({ 
@@ -69,16 +64,7 @@ router.post('/login', loginLimiter, [
         }
 
         // Get user from database
-        const user = await new Promise((resolve, reject) => {
-            db.get(
-                'SELECT * FROM users WHERE email = ? AND is_active = 1',
-                [email],
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                }
-            );
-        });
+        const user = await getUserByEmail(email);
 
         if (!user) {
             await recordLoginAttempt(email, req.ip, false);
@@ -93,10 +79,7 @@ router.post('/login', loginLimiter, [
         }
 
         // Update last login
-        db.run(
-            'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?',
-            [user.id]
-        );
+        await updateUserLastLogin(user.id);
 
         // Record successful login
         await recordLoginAttempt(email, req.ip, true);

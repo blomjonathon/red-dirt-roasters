@@ -7,18 +7,44 @@ try {
     console.log('dotenv not available, using system environment variables');
 }
 
-// PostgreSQL connection pool
-const pool = new Pool({
-    connectionString: process.env.DATABASE_URL || process.env.POSTGRES_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-});
+// Initialize pool as null initially
+let pool = null;
+
+// Function to create the database pool
+function createPool() {
+    const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+    
+    if (!connectionString) {
+        console.log('⚠️  No database URL provided, database features will be disabled');
+        return null;
+    }
+
+    try {
+        return new Pool({
+            connectionString: connectionString,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+            max: 20,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 2000,
+        });
+    } catch (error) {
+        console.error('❌ Failed to create database pool:', error);
+        return null;
+    }
+}
 
 // Test database connection
 async function testConnection() {
     try {
+        if (!pool) {
+            pool = createPool();
+        }
+        
+        if (!pool) {
+            console.log('⚠️  No database pool available');
+            return false;
+        }
+
         const client = await pool.connect();
         console.log('✅ PostgreSQL connected successfully');
         client.release();
@@ -37,6 +63,16 @@ async function initDatabase() {
             console.log('⚠️  No database URL provided, skipping database initialization');
             console.log('ℹ️  Set DATABASE_URL or POSTGRES_URL environment variable to enable database features');
             return true; // Don't crash the app, just skip DB init
+        }
+
+        // Create pool if it doesn't exist
+        if (!pool) {
+            pool = createPool();
+        }
+
+        if (!pool) {
+            console.log('⚠️  Failed to create database pool, skipping initialization');
+            return true;
         }
 
         const client = await pool.connect();
@@ -126,6 +162,14 @@ async function initDatabase() {
 // Create default admin user
 async function createDefaultAdminUser() {
     try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, skipping admin user creation');
+            return;
+        }
+
         const client = await pool.connect();
         
         // Check if admin user already exists
@@ -160,6 +204,14 @@ async function createDefaultAdminUser() {
 // Insert default website content
 async function insertDefaultContent() {
     try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, skipping default content insertion');
+            return;
+        }
+
         const client = await pool.connect();
         
         const defaultContent = [
@@ -226,6 +278,14 @@ async function insertDefaultContent() {
 // Helper function to get content by section
 async function getContentBySection(section) {
     try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot get content');
+            return {};
+        }
+
         const client = await pool.connect();
         const result = await client.query(
             'SELECT field, value FROM website_content WHERE section = $1 ORDER BY field',
@@ -247,6 +307,14 @@ async function getContentBySection(section) {
 // Helper function to update content
 async function updateContent(section, updates) {
     try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot update content');
+            return 0;
+        }
+
         const client = await pool.connect();
         let updatedCount = 0;
         
@@ -270,9 +338,154 @@ async function updateContent(section, updates) {
     }
 }
 
+// Authentication functions
+async function getUserByEmail(email) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot get user');
+            return null;
+        }
+
+        const client = await pool.connect();
+        const result = await client.query(
+            'SELECT * FROM users WHERE email = $1 AND is_active = $2',
+            [email, true]
+        );
+        client.release();
+        
+        return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+        console.error('❌ Failed to get user:', error);
+        throw error;
+    }
+}
+
+async function updateUserLastLogin(userId) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot update user');
+            return false;
+        }
+
+        const client = await pool.connect();
+        await client.query(
+            'UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = $1',
+            [userId]
+        );
+        client.release();
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to update user last login:', error);
+        throw error;
+    }
+}
+
+async function recordLoginAttempt(email, ipAddress, success) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot record login attempt');
+            return false;
+        }
+
+        const client = await pool.connect();
+        await client.query(
+            'INSERT INTO login_attempts (email, ip_address, success) VALUES ($1, $2, $3)',
+            [email, ipAddress, success]
+        );
+        client.release();
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to record login attempt:', error);
+        throw error;
+    }
+}
+
+async function getRecentLoginAttempts(email, minutes = 15) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot get login attempts');
+            return 0;
+        }
+
+        const client = await pool.connect();
+        const result = await client.query(
+            `SELECT COUNT(*) as count FROM login_attempts 
+             WHERE email = $1 AND success = $2 
+             AND attempted_at > NOW() - INTERVAL '${minutes} minutes'`,
+            [email, false]
+        );
+        client.release();
+        
+        return parseInt(result.rows[0].count);
+    } catch (error) {
+        console.error('❌ Failed to get login attempts:', error);
+        throw error;
+    }
+}
+
+async function createSession(userId, tokenHash, expiresAt) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot create session');
+            return false;
+        }
+
+        const client = await pool.connect();
+        await client.query(
+            'INSERT INTO sessions (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+            [userId, tokenHash, expiresAt]
+        );
+        client.release();
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to create session:', error);
+        throw error;
+    }
+}
+
+async function deleteSession(tokenHash) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot delete session');
+            return false;
+        }
+
+        const client = await pool.connect();
+        await client.query(
+            'DELETE FROM sessions WHERE token_hash = $1',
+            [tokenHash]
+        );
+        client.release();
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to delete session:', error);
+        throw error;
+    }
+}
+
 // Close database connection pool
 async function closePool() {
-    await pool.end();
+    if (pool) {
+        await pool.end();
+    }
 }
 
 module.exports = {
@@ -282,6 +495,12 @@ module.exports = {
     insertDefaultContent,
     getContentBySection,
     updateContent,
+    getUserByEmail,
+    updateUserLastLogin,
+    recordLoginAttempt,
+    getRecentLoginAttempts,
+    createSession,
+    deleteSession,
     testConnection,
     closePool
 };

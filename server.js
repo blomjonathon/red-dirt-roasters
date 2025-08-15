@@ -39,7 +39,7 @@ app.use('/api/', limiter);
 // CORS configuration
 app.use(cors({
     origin: process.env.NODE_ENV === 'production' 
-        ? ['https://yourdomain.com'] 
+        ? ['https://red-dirt-roasters.onrender.com/'] 
         : ['http://localhost:3000', 'http://localhost:5000'],
     credentials: true
 }));
