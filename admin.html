@@ -19,9 +19,9 @@
         <div id="loginSection" class="login-section">
             <div class="login-form">
                 <h2>Admin Login</h2>
+                <input type="email" id="adminEmail" placeholder="Enter admin email" />
                 <input type="password" id="adminPassword" placeholder="Enter admin password" />
-                <button onclick="login()" class="login-btn">Login</button>
-                <p class="note">Default password: admin123</p>
+                <button class="login-btn" id="loginBtn">Login</button>
             </div>
         </div>
 
@@ -29,9 +29,9 @@
         <div id="adminPanel" class="admin-panel" style="display: none;">
             <!-- Navigation Tabs -->
             <nav class="admin-nav">
-                <button class="tab-btn active" onclick="showTab('content')">Content</button>
-                <button class="tab-btn" onclick="showTab('images')">Images</button>
-                <button class="tab-btn" onclick="showTab('settings')">Settings</button>
+                <button class="tab-btn active" data-tab="content">Content</button>
+                <button class="tab-btn" data-tab="images">Images</button>
+                <button class="tab-btn" data-tab="settings">Settings</button>
             </nav>
 
             <!-- Content Tab -->
@@ -145,7 +145,7 @@
                     </div>
                 </div>
 
-                <button onclick="saveContent()" class="save-btn">Save All Changes</button>
+                <button class="save-btn" id="saveContentBtn">Save All Changes</button>
             </div>
 
             <!-- Images Tab -->
@@ -181,7 +181,7 @@
                             <div class="image-preview" id="darkRoastImagePreview"></div>
                         </div>
                     </div>
-                    <button onclick="uploadImages()" class="upload-btn">Upload All Images</button>
+                    <button class="upload-btn" id="uploadImagesBtn">Upload All Images</button>
                 </div>
 
                 <div class="current-images">
@@ -206,23 +206,24 @@
                         <label>Company Name:</label>
                         <input type="text" id="companyName" placeholder="Red Dirt Roasters" />
                     </div>
-                    <div class="form-group">
-                        <label>Change Admin Password:</label>
-                        <input type="password" id="newPassword" placeholder="New password" />
-                        <button onclick="changePassword()" class="change-pwd-btn">Change Password</button>
-                    </div>
+                                         <div class="form-group">
+                         <label>Change Admin Password:</label>
+                         <input type="password" id="currentPassword" placeholder="Current password" />
+                         <input type="password" id="newPassword" placeholder="New password" />
+                         <button class="change-pwd-btn" id="changePasswordBtn">Change Password</button>
+                     </div>
                 </div>
 
                 <div class="settings-section">
                     <h3>Export/Import</h3>
-                    <button onclick="exportData()" class="export-btn">Export Website Data</button>
+                    <button class="export-btn" id="exportDataBtn">Export Website Data</button>
                     <div class="import-section">
                         <input type="file" id="importFile" accept=".json" />
-                        <button onclick="importData()" class="import-btn">Import Website Data</button>
+                        <button class="import-btn" id="importDataBtn">Import Website Data</button>
                     </div>
                 </div>
 
-                <button onclick="saveSettings()" class="save-btn">Save Settings</button>
+                <button class="save-btn" id="saveSettingsBtn">Save Settings</button>
             </div>
         </div>
     </div>

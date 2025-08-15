@@ -1,151 +1,270 @@
-# Red Dirt Roasters - Coffee Roasting Website
+# Red Dirt Roasters - Secure Admin Panel
 
-A professional coffee roasting website with an integrated admin panel for easy content management.
+A secure, database-driven admin panel for managing website content with SQL backend, JWT authentication, and comprehensive security features.
 
 ## 🚀 Features
 
-### Main Website
-- **Responsive Design** - Works perfectly on all devices
-- **Modern UI** - Clean, coffee-themed design with smooth animations
-- **Dynamic Content** - Content updates automatically through the admin system
-- **Contact Form** - Built-in contact form for customer inquiries
-- **SEO Ready** - Proper meta tags and semantic HTML
+- **Secure Authentication**: JWT-based login with bcrypt password hashing
+- **SQL Database**: SQLite backend with organized content management
+- **Security Features**: Rate limiting, brute force protection, CSRF protection
+- **Content Management**: Easy editing of all website sections
+- **Data Export/Import**: Backup and restore functionality
+- **Responsive Design**: Modern admin interface
 
-### Admin Panel
-- **Easy Content Management** - Update text, images, and settings without coding
-- **Image Upload System** - Upload and manage website images
-- **Real-time Updates** - Changes appear immediately on the main website
-- **Export/Import** - Backup and restore your website data
-- **Secure Access** - Password-protected admin area
+## 🛡️ Security Features
 
-## 📁 File Structure
+- **Password Security**: Bcrypt hashing with configurable salt rounds
+- **JWT Authentication**: Secure token-based sessions
+- **Rate Limiting**: Protection against brute force attacks
+- **Input Validation**: Server-side validation for all inputs
+- **SQL Injection Protection**: Parameterized queries
+- **CORS Configuration**: Secure cross-origin requests
+- **Helmet Security**: HTTP security headers
+
+## 📋 Prerequisites
+
+- Node.js (v14 or higher)
+- npm or yarn package manager
+
+## 🚀 Quick Setup
+
+### 1. Install Dependencies
+
+```bash
+npm install
+```
+
+### 2. Environment Configuration
+
+Copy the environment example file and update it with your values:
+
+```bash
+cp env.example .env
+```
+
+Edit `.env` file with your configuration:
+
+```env
+# Server Configuration
+PORT=3000
+NODE_ENV=development
+
+# Database Configuration
+DB_PATH=./database/red-dirt-roasters.db
+
+# JWT Configuration
+JWT_SECRET=your-super-secret-jwt-key-change-this-immediately
+JWT_EXPIRES_IN=24h
+
+# Admin User Configuration
+ADMIN_EMAIL=admin@reddirtroasters.com
+ADMIN_PASSWORD=your-secure-admin-password-change-this
+
+# Security Configuration
+BCRYPT_ROUNDS=12
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX_REQUESTS=100
+```
+
+**⚠️ IMPORTANT**: Change the `JWT_SECRET` and `ADMIN_PASSWORD` immediately!
+
+### 3. Initialize Database
+
+```bash
+npm run init-db
+```
+
+This will:
+- Create the SQLite database
+- Set up all necessary tables
+- Create the default admin user
+- Insert default website content
+
+### 4. Start the Server
+
+```bash
+npm start
+```
+
+For development with auto-reload:
+
+```bash
+npm run dev
+```
+
+### 5. Access the Admin Panel
+
+- **Admin Panel**: http://localhost:3000/admin.html
+- **Main Website**: http://localhost:3000/index.html
+- **API Health Check**: http://localhost:3000/api/health
+
+## 🔐 Default Login
+
+- **Email**: admin@reddirtroasters.com
+- **Password**: admin123 (or what you set in .env)
+
+**⚠️ CRITICAL**: Change this password immediately after first login!
+
+## 📁 Project Structure
 
 ```
 red-dirt-roasters/
-├── index.html          # Main website
-├── styles.css          # Main website styling
-├── script.js           # Main website functionality
-├── admin.html          # Admin panel interface
-├── admin.css           # Admin panel styling
-├── admin.js            # Admin panel functionality
-├── admin-integration.js # Connects admin to main website
-└── README.md           # This file
+├── database/
+│   └── database.js          # Database initialization and utilities
+├── routes/
+│   ├── auth.js             # Authentication routes
+│   ├── admin.js            # Admin panel routes
+│   └── website.js          # Public website routes
+├── server.js               # Main Express server
+├── init-database.js        # Database setup script
+├── admin.html              # Admin panel interface
+├── admin.js                # Admin panel JavaScript
+├── admin.css               # Admin panel styles
+├── index.html              # Main website
+├── styles.css              # Main website styles
+├── script.js               # Main website JavaScript
+├── package.json            # Dependencies and scripts
+├── env.example             # Environment configuration template
+└── README.md               # This file
 ```
 
-## 🔐 Accessing the Admin Panel
+## 🗄️ Database Schema
 
-1. **Navigate to**: `yourdomain.com/admin.html`
-2. **Default Password**: `admin123`
-3. **Change Password**: Use the Settings tab to set a new password
+### Users Table
+- `id`: Primary key
+- `email`: Admin email (unique)
+- `password_hash`: Bcrypt hashed password
+- `role`: User role (admin)
+- `created_at`: Account creation timestamp
+- `last_login`: Last login timestamp
+- `is_active`: Account status
 
-## 📝 How to Use the Admin Panel
+### Website Content Table
+- `id`: Primary key
+- `section`: Content section (hero, about, features, etc.)
+- `field`: Field name within section
+- `value`: Field value
+- `updated_at`: Last update timestamp
 
-### Content Tab
-- **Hero Section**: Update main heading, subtitle, and button text
-- **About Section**: Modify company story and features
-- **Coffee Products**: Update product names, descriptions, and prices
-- **Contact Info**: Change address, phone, email, and business hours
+### Sessions Table
+- `id`: Primary key
+- `user_id`: User reference
+- `token_hash`: JWT token hash
+- `expires_at`: Token expiration
+- `created_at`: Session creation timestamp
 
-### Images Tab
-- **Upload Images**: Replace default graphics with your own photos
-- **Image Types**: Hero background, about section, and coffee product images
-- **Preview**: See how images will look before uploading
+### Login Attempts Table
+- `id`: Primary key
+- `email`: Attempted email
+- `ip_address`: IP address
+- `attempted_at`: Attempt timestamp
+- `success`: Success status
 
-### Settings Tab
-- **Basic Settings**: Change website title and company name
-- **Password Management**: Update admin password
-- **Data Export/Import**: Backup and restore your website content
+## 🔧 API Endpoints
 
-## 🌐 Deployment
+### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/logout` - User logout
+- `POST /api/auth/change-password` - Change password
+- `GET /api/auth/me` - Get current user info
 
-### Simple Hosting (Static Sites)
-1. Upload all files to your web hosting service
-2. Access admin panel at `yourdomain.com/admin.html`
-3. Make changes through the admin interface
-4. Content updates automatically
+### Admin Panel
+- `GET /api/admin/content` - Get all website content
+- `PUT /api/admin/content` - Update website content
+- `GET /api/admin/content/:section` - Get specific section
+- `PUT /api/admin/content/:section` - Update specific section
+- `GET /api/admin/export` - Export website data
+- `POST /api/admin/import` - Import website data
+- `GET /api/admin/dashboard` - Get admin dashboard stats
 
-### Advanced Hosting (With Backend)
-For production use, consider:
-- **Database Integration**: Store content in a real database
-- **Image Storage**: Use cloud storage (AWS S3, Cloudinary)
-- **User Authentication**: Implement proper user management
-- **API Endpoints**: Create REST APIs for content management
+### Public Website
+- `GET /api/website/content` - Get all public content
+- `GET /api/website/content/:section` - Get specific section
+- `GET /api/website/hero` - Get hero section
+- `GET /api/website/about` - Get about section
+- `GET /api/website/features` - Get features section
+- `GET /api/website/coffee` - Get coffee products
+- `GET /api/website/contact` - Get contact information
+- `GET /api/website/settings` - Get website settings
+- `GET /api/website/search` - Search content
 
-## 🔧 Customization
+## 🚀 Production Deployment
 
-### Adding New Content Sections
-1. Add HTML structure to `index.html`
-2. Update `admin.html` with form fields
-3. Modify `admin.js` to handle new data
-4. Update `admin-integration.js` to display new content
+### 1. Environment Variables
+- Set `NODE_ENV=production`
+- Use strong, unique `JWT_SECRET`
+- Configure production database path
+- Set appropriate CORS origins
 
-### Styling Changes
-- **Main Website**: Edit `styles.css`
-- **Admin Panel**: Edit `admin.css`
-- **Colors**: Update CSS variables for consistent theming
+### 2. Database
+- Consider upgrading to MySQL/PostgreSQL for production
+- Implement regular backups
+- Monitor database performance
 
-### Adding New Features
-- **JavaScript**: Extend `script.js` or `admin.js`
-- **Form Handling**: Modify contact form processing
-- **Animations**: Add new CSS animations and transitions
+### 3. Security
+- Use HTTPS in production
+- Implement proper logging
+- Set up monitoring and alerting
+- Regular security updates
 
-## 📱 Mobile Responsiveness
+### 4. Process Management
+- Use PM2 or similar process manager
+- Set up reverse proxy (nginx/Apache)
+- Configure SSL certificates
 
-The website and admin panel are fully responsive:
-- **Mobile-First Design** - Optimized for small screens
-- **Touch-Friendly** - Easy to use on tablets and phones
-- **Adaptive Layout** - Content adjusts to screen size
+## 🔒 Security Best Practices
 
-## 🔒 Security Considerations
+1. **Strong Passwords**: Use complex passwords and change regularly
+2. **JWT Secret**: Use a long, random JWT secret
+3. **Rate Limiting**: Adjust rate limits based on your needs
+4. **HTTPS**: Always use HTTPS in production
+5. **Regular Updates**: Keep dependencies updated
+6. **Monitoring**: Monitor for suspicious activity
+7. **Backups**: Regular database and content backups
 
-### For Production Use
-- **Change Default Password**: Immediately change from `admin123`
-- **HTTPS**: Use SSL certificates for secure data transmission
-- **Input Validation**: Add server-side validation for all inputs
-- **Rate Limiting**: Prevent brute force attacks on admin login
-- **Session Management**: Implement proper user sessions
+## 🐛 Troubleshooting
 
-### Current Implementation
-- **Local Storage**: Data stored in browser (good for demos)
-- **Client-Side Only**: No server-side security (not for production)
-- **Basic Authentication**: Simple password check
+### Common Issues
 
-### Git Security
-- **`.gitignore`**: Configured to exclude sensitive files
-- **Config Files**: Use `config.example.js` as template, create `config.js` locally
-- **Never Commit**: Passwords, API keys, or sensitive configuration data
+1. **Database Connection Error**
+   - Check database path in .env
+   - Ensure database directory exists
+   - Run `npm run init-db`
 
-## 🚀 Getting Started
+2. **Login Issues**
+   - Verify email/password in .env
+   - Check database initialization
+   - Clear browser localStorage
 
-1. **Download** all files to your computer
-2. **Open** `index.html` in a web browser to see the main website
-3. **Open** `admin.html` to access the admin panel
-4. **Login** with password: `admin123`
-5. **Start Customizing** your coffee roasting website!
+3. **Port Already in Use**
+   - Change PORT in .env
+   - Kill existing process on port 3000
+
+4. **CORS Errors**
+   - Check CORS configuration in server.js
+   - Verify frontend URL matches allowed origins
+
+### Logs
+
+Check server console for detailed error messages and debugging information.
 
 ## 📞 Support
 
-This is a self-contained website template. For customization help:
-- Review the code comments in each file
-- Check browser console for any error messages
-- Ensure all files are in the same directory
-- Verify file permissions on your hosting service
+For issues or questions:
+1. Check the troubleshooting section
+2. Review server logs
+3. Verify configuration files
+4. Check database connectivity
 
-## 🎯 Next Steps
+## 📄 License
 
-### Immediate Improvements
-- [ ] Add your real coffee photos
-- [ ] Update business information
-- [ ] Customize color scheme
-- [ ] Add social media links
+MIT License - see LICENSE file for details.
 
-### Future Enhancements
-- [ ] Online ordering system
-- [ ] Customer reviews section
-- [ ] Blog/news section
-- [ ] Newsletter signup
-- [ ] Analytics integration
+## 🔄 Updates
+
+- **v2.0.0**: Added SQL backend, JWT authentication, security features
+- **v1.0.0**: Initial localStorage-based admin panel
 
 ---
 
-**Built with ❤️ for coffee lovers everywhere!**
+**Happy Coffee Roasting! ☕**
