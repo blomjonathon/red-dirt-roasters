@@ -481,6 +481,84 @@ async function deleteSession(tokenHash) {
     }
 }
 
+// Reset login attempts for a specific email
+async function resetLoginAttempts(email) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot reset login attempts');
+            return 0;
+        }
+
+        const client = await pool.connect();
+        const result = await client.query(
+            'DELETE FROM login_attempts WHERE email = $1',
+            [email]
+        );
+        client.release();
+        
+        return result.rowCount;
+    } catch (error) {
+        console.error('❌ Failed to reset login attempts:', error);
+        throw error;
+    }
+}
+
+// Update user password
+async function updateUserPassword(userId, newPasswordHash) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot update password');
+            return false;
+        }
+
+        const client = await pool.connect();
+        await client.query(
+            'UPDATE users SET password_hash = $1 WHERE id = $2',
+            [newPasswordHash, userId]
+        );
+        client.release();
+        return true;
+    } catch (error) {
+        console.error('❌ Failed to update password:', error);
+        throw error;
+    }
+}
+
+// Get login attempts for a specific email
+async function getLoginAttemptsByEmail(email, limit = 100) {
+    try {
+        if (!pool) {
+            pool = createPool();
+        }
+        if (!pool) {
+            console.log('⚠️  No database pool available, cannot get login attempts');
+            return [];
+        }
+
+        const client = await pool.connect();
+        const result = await client.query(
+            `SELECT id, email, ip_address, attempted_at, success 
+             FROM login_attempts 
+             WHERE email = $1 
+             ORDER BY attempted_at DESC 
+             LIMIT $2`,
+            [email, limit]
+        );
+        client.release();
+        
+        return result.rows;
+    } catch (error) {
+        console.error('❌ Failed to get login attempts:', error);
+        throw error;
+    }
+}
+
 // Close database connection pool
 async function closePool() {
     if (pool) {
@@ -501,6 +579,9 @@ module.exports = {
     getRecentLoginAttempts,
     createSession,
     deleteSession,
+    resetLoginAttempts,
+    updateUserPassword,
+    getLoginAttemptsByEmail,
     testConnection,
     closePool
 };

@@ -8,7 +8,8 @@ const {
     recordLoginAttempt, 
     getRecentLoginAttempts,
     createSession,
-    deleteSession
+    deleteSession,
+    resetLoginAttempts
 } = require('../database/database');
 
 const router = express.Router();
@@ -123,6 +124,38 @@ router.post('/logout', authenticateToken, async (req, res) => {
     }
 });
 
+// Reset login attempts endpoint (admin only)
+router.post('/reset-login-attempts', authenticateToken, [
+    body('email').isEmail().normalizeEmail()
+], async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { email } = req.body;
+
+        // Reset login attempts for the specified email
+        const resetCount = await resetLoginAttempts(email);
+
+        res.json({ 
+            message: 'Login attempts reset successfully',
+            email: email,
+            resetCount: resetCount
+        });
+
+    } catch (error) {
+        console.error('Reset login attempts error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 // Change password endpoint
 router.post('/change-password', authenticateToken, [
     body('currentPassword').isLength({ min: 1 }),
@@ -135,19 +168,9 @@ router.post('/change-password', authenticateToken, [
         }
 
         const { currentPassword, newPassword } = req.body;
-        const db = getDb();
 
         // Get current user
-        const user = await new Promise((resolve, reject) => {
-            db.get(
-                'SELECT * FROM users WHERE id = ?',
-                [req.user.userId],
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                }
-            );
-        });
+        const user = await getUserByEmail(req.user.email);
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
@@ -164,16 +187,8 @@ router.post('/change-password', authenticateToken, [
         const newPasswordHash = await bcrypt.hash(newPassword, saltRounds);
 
         // Update password in database
-        await new Promise((resolve, reject) => {
-            db.run(
-                'UPDATE users SET password_hash = ? WHERE id = ?',
-                [newPasswordHash, req.user.userId],
-                function(err) {
-                    if (err) reject(err);
-                    else resolve();
-                }
-            );
-        });
+        const { updateUserPassword } = require('../database/database');
+        await updateUserPassword(user.id, newPasswordHash);
 
         res.json({ message: 'Password changed successfully' });
 
@@ -186,42 +201,49 @@ router.post('/change-password', authenticateToken, [
 // Get current user info
 router.get('/me', authenticateToken, async (req, res) => {
     try {
-        const db = getDb();
-        const user = await new Promise((resolve, reject) => {
-            db.get(
-                'SELECT id, email, role, created_at, last_login FROM users WHERE id = ?',
-                [req.user.userId],
-                (err, row) => {
-                    if (err) reject(err);
-                    else resolve(row);
-                }
-            );
-        });
+        const user = await getUserByEmail(req.user.email);
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        res.json({ user });
+        res.json({ 
+            user: {
+                id: user.id,
+                email: user.email,
+                role: user.role,
+                created_at: user.created_at,
+                last_login: user.last_login
+            }
+        });
     } catch (error) {
         console.error('Get user info error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
-// Record login attempt
-async function recordLoginAttempt(email, ipAddress, success) {
-    const db = getDb();
-    return new Promise((resolve, reject) => {
-        db.run(
-            'INSERT INTO login_attempts (email, ip_address, success) VALUES (?, ?, ?)',
-            [email, ipAddress, success],
-            function(err) {
-                if (err) reject(err);
-                else resolve();
-            }
-        );
-    });
-}
+// Get login attempts for a user (admin only)
+router.get('/login-attempts/:email', authenticateToken, async (req, res) => {
+    try {
+        // Check if user is admin
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Admin access required' });
+        }
+
+        const { email } = req.params;
+        const { getLoginAttemptsByEmail } = require('../database/database');
+        
+        const attempts = await getLoginAttemptsByEmail(email, 100); // Get last 100 attempts
+
+        res.json({ 
+            email: email,
+            attempts: attempts
+        });
+
+    } catch (error) {
+        console.error('Get login attempts error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 module.exports = router;
