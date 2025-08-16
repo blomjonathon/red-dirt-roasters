@@ -6,247 +6,269 @@ let websiteData = {};
 // Load website data when page loads
 document.addEventListener('DOMContentLoaded', function() {
     loadWebsiteData();
-    updateWebsiteContent();
     
     // Add admin link to navigation (only visible to admins)
     addAdminLink();
 });
 
-// Load data from admin system
-function loadWebsiteData() {
-    const savedData = localStorage.getItem('websiteData');
-    if (savedData) {
-        websiteData = JSON.parse(savedData);
+// Load data from admin system via API
+async function loadWebsiteData() {
+    try {
+        // Try to load from API first (no authentication needed for public content)
+        const response = await fetch('/api/website/content');
+        if (response.ok) {
+            const data = await response.json();
+            websiteData = data.content || {};
+            console.log('✅ Loaded content from API:', websiteData);
+        } else {
+            console.warn('⚠️ Could not load from API, using fallback content');
+            // Fallback to localStorage if API fails
+            const savedData = localStorage.getItem('websiteData');
+            if (savedData) {
+                websiteData = JSON.parse(savedData);
+            }
+        }
+        
+        // Update the website content with loaded data
+        updateWebsiteContent();
+    } catch (error) {
+        console.error('❌ Error loading website data:', error);
+        // Fallback to localStorage if API fails
+        const savedData = localStorage.getItem('websiteData');
+        if (savedData) {
+            websiteData = JSON.parse(savedData);
+            updateWebsiteContent();
+        }
     }
 }
 
 // Update website content with admin data
 function updateWebsiteContent() {
     // Update page title
-    if (websiteData.websiteTitle) {
-        document.title = websiteData.websiteTitle;
+    if (websiteData.settings && websiteData.settings.website_title) {
+        document.title = websiteData.settings.website_title;
     }
     
     // Update company name in navigation
-    if (websiteData.companyName) {
+    if (websiteData.settings && websiteData.settings.company_name) {
         const navLogo = document.querySelector('.nav-logo h2');
         if (navLogo) {
-            navLogo.textContent = websiteData.companyName;
+            navLogo.textContent = websiteData.settings.company_name;
         }
     }
     
     // Update hero section
-    if (websiteData.heroHeading) {
+    if (websiteData.hero && websiteData.hero.heading) {
         const heroTitle = document.querySelector('.hero h1');
         if (heroTitle) {
-            heroTitle.textContent = websiteData.heroHeading;
+            heroTitle.textContent = websiteData.hero.heading;
         }
     }
     
-    if (websiteData.heroSubtitle) {
+    if (websiteData.hero && websiteData.hero.subtitle) {
         const heroSubtitle = document.querySelector('.hero p');
         if (heroSubtitle) {
-            heroSubtitle.textContent = websiteData.heroSubtitle;
+            heroSubtitle.textContent = websiteData.hero.subtitle;
         }
     }
     
-    if (websiteData.heroButton) {
+    if (websiteData.hero && websiteData.hero.button) {
         const heroButton = document.querySelector('.cta-button');
         if (heroButton) {
-            heroButton.textContent = websiteData.heroButton;
+            heroButton.textContent = websiteData.hero.button;
         }
     }
     
     // Update about section
-    if (websiteData.aboutTitle) {
+    if (websiteData.about && websiteData.about.title) {
         const aboutTitle = document.querySelector('.about h2');
         if (aboutTitle) {
-            aboutTitle.textContent = websiteData.aboutTitle;
+            aboutTitle.textContent = websiteData.about.title;
         }
     }
     
-    if (websiteData.aboutStory1) {
+    if (websiteData.about && websiteData.about.story1) {
         const aboutStory1 = document.querySelector('.about-text p:first-child');
         if (aboutStory1) {
-            aboutStory1.textContent = websiteData.aboutStory1;
+            aboutStory1.textContent = websiteData.about.story1;
         }
     }
     
-    if (websiteData.aboutStory2) {
+    if (websiteData.about && websiteData.about.story2) {
         const aboutStory2 = document.querySelector('.about-text p:last-child');
         if (aboutStory2) {
-            aboutStory2.textContent = websiteData.aboutStory2;
+            aboutStory2.textContent = websiteData.about.story2;
         }
     }
     
     // Update features
-    if (websiteData.feature1Title) {
+    if (websiteData.features && websiteData.features.feature1_title) {
         const feature1Title = document.querySelector('.feature:nth-child(1) h3');
         if (feature1Title) {
-            feature1Title.textContent = websiteData.feature1Title;
+            feature1Title.textContent = websiteData.features.feature1_title;
         }
     }
     
-    if (websiteData.feature1Desc) {
+    if (websiteData.features && websiteData.features.feature1_desc) {
         const feature1Desc = document.querySelector('.feature:nth-child(1) p');
         if (feature1Desc) {
-            feature1Desc.textContent = websiteData.feature1Desc;
+            feature1Desc.textContent = websiteData.features.feature1_desc;
         }
     }
     
-    if (websiteData.feature2Title) {
+    if (websiteData.features && websiteData.features.feature2_title) {
         const feature2Title = document.querySelector('.feature:nth-child(2) h3');
         if (feature2Title) {
-            feature2Title.textContent = websiteData.feature2Title;
+            feature2Title.textContent = websiteData.features.feature2_title;
         }
     }
     
-    if (websiteData.feature2Desc) {
+    if (websiteData.features && websiteData.features.feature2_desc) {
         const feature2Desc = document.querySelector('.feature:nth-child(2) p');
         if (feature2Desc) {
-            feature2Desc.textContent = websiteData.feature2Desc;
+            feature2Desc.textContent = websiteData.features.feature2_desc;
         }
     }
     
-    if (websiteData.feature3Title) {
+    if (websiteData.features && websiteData.features.feature3_title) {
         const feature3Title = document.querySelector('.feature:nth-child(3) h3');
         if (feature3Title) {
-            feature3Title.textContent = websiteData.feature3Title;
+            feature3Title.textContent = websiteData.features.feature3_title;
         }
     }
     
-    if (websiteData.feature3Desc) {
+    if (websiteData.features && websiteData.features.feature3_desc) {
         const feature3Desc = document.querySelector('.feature:nth-child(3) p');
         if (feature3Desc) {
-            feature3Desc.textContent = websiteData.feature3Desc;
+            feature3Desc.textContent = websiteData.features.feature3_desc;
         }
     }
     
     // Update coffee products
-    if (websiteData.lightRoastTitle) {
+    if (websiteData.coffee && websiteData.coffee.light_roast_title) {
         const lightRoastTitle = document.querySelector('.coffee-card:nth-child(1) h3');
         if (lightRoastTitle) {
-            lightRoastTitle.textContent = websiteData.lightRoastTitle;
+            lightRoastTitle.textContent = websiteData.coffee.light_roast_title;
         }
     }
     
-    if (websiteData.lightRoastDesc) {
+    if (websiteData.coffee && websiteData.coffee.light_roast_desc) {
         const lightRoastDesc = document.querySelector('.coffee-card:nth-child(1) p');
         if (lightRoastDesc) {
-            lightRoastDesc.textContent = websiteData.lightRoastDesc;
+            lightRoastDesc.textContent = websiteData.coffee.light_roast_desc;
         }
     }
     
-    if (websiteData.lightRoastPrice) {
+    if (websiteData.coffee && websiteData.coffee.light_roast_price) {
         const lightRoastPrice = document.querySelector('.coffee-card:nth-child(1) .price');
         if (lightRoastPrice) {
-            lightRoastPrice.textContent = websiteData.lightRoastPrice;
+            lightRoastPrice.textContent = websiteData.coffee.light_roast_price;
         }
     }
     
-    if (websiteData.mediumRoastTitle) {
+    if (websiteData.coffee && websiteData.coffee.medium_roast_title) {
         const mediumRoastTitle = document.querySelector('.coffee-card:nth-child(2) h3');
         if (mediumRoastTitle) {
-            mediumRoastTitle.textContent = websiteData.mediumRoastTitle;
+            mediumRoastTitle.textContent = websiteData.coffee.medium_roast_title;
         }
     }
     
-    if (websiteData.mediumRoastDesc) {
+    if (websiteData.coffee && websiteData.coffee.medium_roast_desc) {
         const mediumRoastDesc = document.querySelector('.coffee-card:nth-child(2) p');
         if (mediumRoastDesc) {
-            mediumRoastDesc.textContent = websiteData.mediumRoastDesc;
+            mediumRoastDesc.textContent = websiteData.coffee.medium_roast_desc;
         }
     }
     
-    if (websiteData.mediumRoastPrice) {
+    if (websiteData.coffee && websiteData.coffee.medium_roast_price) {
         const mediumRoastPrice = document.querySelector('.coffee-card:nth-child(2) .price');
         if (mediumRoastPrice) {
-            mediumRoastPrice.textContent = websiteData.mediumRoastPrice;
+            mediumRoastPrice.textContent = websiteData.coffee.medium_roast_price;
         }
     }
     
-    if (websiteData.darkRoastTitle) {
+    if (websiteData.coffee && websiteData.coffee.dark_roast_title) {
         const darkRoastTitle = document.querySelector('.coffee-card:nth-child(3) h3');
         if (darkRoastTitle) {
-            darkRoastTitle.textContent = websiteData.darkRoastTitle;
+            darkRoastTitle.textContent = websiteData.coffee.dark_roast_title;
         }
     }
     
-    if (websiteData.darkRoastDesc) {
+    if (websiteData.coffee && websiteData.coffee.dark_roast_desc) {
         const darkRoastDesc = document.querySelector('.coffee-card:nth-child(3) p');
         if (darkRoastDesc) {
-            darkRoastDesc.textContent = websiteData.darkRoastDesc;
+            darkRoastDesc.textContent = websiteData.coffee.dark_roast_desc;
         }
     }
     
-    if (websiteData.darkRoastPrice) {
+    if (websiteData.coffee && websiteData.coffee.dark_roast_price) {
         const darkRoastPrice = document.querySelector('.coffee-card:nth-child(3) .price');
         if (darkRoastPrice) {
-            darkRoastPrice.textContent = websiteData.darkRoastPrice;
+            darkRoastPrice.textContent = websiteData.coffee.dark_roast_price;
         }
     }
     
     // Update contact information
-    if (websiteData.contactAddress) {
+    if (websiteData.contact && websiteData.contact.address) {
         const addressLine = document.querySelector('.contact-info p:first-child');
         if (addressLine) {
             const addressText = addressLine.innerHTML;
-            const newAddressText = addressText.replace(/123 Coffee Street/, websiteData.contactAddress);
+            const newAddressText = addressText.replace(/123 Coffee Street/, websiteData.contact.address);
             addressLine.innerHTML = newAddressText;
         }
     }
     
-    if (websiteData.contactCity) {
+    if (websiteData.contact && websiteData.contact.city) {
         const cityLine = document.querySelector('.contact-info p:first-child');
         if (cityLine) {
             const cityText = cityLine.innerHTML;
-            const newCityText = cityText.replace(/Oklahoma City, OK 73102/, websiteData.contactCity);
+            const newCityText = cityText.replace(/Oklahoma City, OK 73102/, websiteData.contact.city);
             cityLine.innerHTML = newCityText;
         }
     }
     
-    if (websiteData.contactPhone) {
+    if (websiteData.contact && websiteData.contact.phone) {
         const phoneLine = document.querySelector('.contact-info p:last-child');
         if (phoneLine) {
             const phoneText = phoneLine.innerHTML;
-            const newPhoneText = phoneText.replace(/\(405\) 555-0123/, websiteData.contactPhone);
+            const newPhoneText = phoneText.replace(/\(405\) 555-0123/, websiteData.contact.phone);
             phoneLine.innerHTML = newPhoneText;
         }
     }
     
-    if (websiteData.contactEmail) {
+    if (websiteData.contact && websiteData.contact.email) {
         const emailLine = document.querySelector('.contact-info p:last-child');
         if (emailLine) {
             const emailText = emailLine.innerHTML;
-            const newEmailText = emailText.replace(/info@reddirtroasters\.com/, websiteData.contactEmail);
+            const newEmailText = emailText.replace(/info@reddirtroasters\.com/, websiteData.contact.email);
             emailLine.innerHTML = newEmailText;
         }
     }
     
     // Update hours
-    if (websiteData.contactHours1) {
+    if (websiteData.contact && websiteData.contact.hours1) {
         const hoursLine1 = document.querySelector('.contact-info p:nth-child(2)');
         if (hoursLine1) {
             const hoursText = hoursLine1.innerHTML;
-            const newHoursText = hoursText.replace(/Monday - Friday: 7:00 AM - 6:00 PM/, websiteData.contactHours1);
+            const newHoursText = hoursText.replace(/Monday - Friday: 7:00 AM - 6:00 PM/, websiteData.contact.hours1);
             hoursLine1.innerHTML = newHoursText;
         }
     }
     
-    if (websiteData.contactHours2) {
+    if (websiteData.contact && websiteData.contact.hours2) {
         const hoursLine2 = document.querySelector('.contact-info p:nth-child(2)');
         if (hoursLine2) {
             const hoursText = hoursLine2.innerHTML;
-            const newHoursText = hoursText.replace(/Saturday: 8:00 AM - 4:00 PM/, websiteData.contactHours2);
+            const newHoursText = hoursText.replace(/Saturday: 8:00 AM - 4:00 PM/, websiteData.contact.hours2);
             hoursLine2.innerHTML = newHoursText;
         }
     }
     
-    if (websiteData.contactHours3) {
+    if (websiteData.contact && websiteData.contact.hours3) {
         const hoursLine3 = document.querySelector('.contact-info p:nth-child(2)');
         if (hoursLine3) {
             const hoursText = hoursLine3.innerHTML;
-            const newHoursText = hoursText.replace(/Sunday: Closed/, websiteData.contactHours3);
+            const newHoursText = hoursText.replace(/Sunday: Closed/, websiteData.contact.hours3);
             hoursLine3.innerHTML = newHoursText;
         }
     }
