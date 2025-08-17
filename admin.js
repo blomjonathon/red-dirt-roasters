@@ -37,6 +37,40 @@ class AdminPanel {
 
         // Logout (add logout button if needed)
         this.addLogoutButton();
+
+        // Image preview functionality
+        this.setupImagePreviews();
+    }
+
+    setupImagePreviews() {
+        const imageInputs = ['heroImage', 'aboutImage', 'lightRoastImage', 'mediumRoastImage', 'darkRoastImage'];
+        
+        imageInputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            const preview = document.getElementById(`${inputId}Preview`);
+            
+            if (input && preview) {
+                input.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        this.showImagePreview(file, preview);
+                    }
+                });
+            }
+        });
+    }
+
+    showImagePreview(file, previewElement) {
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                previewElement.innerHTML = `
+                    <img src="${e.target.result}" alt="Preview" style="max-width: 150px; max-height: 150px; object-fit: cover; border-radius: 8px;">
+                    <p style="font-size: 12px; margin-top: 5px;">${file.name}</p>
+                `;
+            };
+            reader.readAsDataURL(file);
+        }
     }
 
     addLogoutButton() {
@@ -117,6 +151,119 @@ class AdminPanel {
         
         // Add active class to clicked button
         event.target.classList.add('active');
+
+        // Load images if images tab is selected
+        if (tabName === 'images') {
+            this.loadCurrentImages();
+        }
+    }
+
+    async loadCurrentImages() {
+        if (!this.token) return;
+
+        try {
+            const response = await fetch(`${this.apiBase}/admin/images`, {
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                this.displayCurrentImages(data.images);
+            } else {
+                console.error('Failed to load images');
+            }
+        } catch (error) {
+            console.error('Error loading images:', error);
+        }
+    }
+
+    displayCurrentImages(images) {
+        const grid = document.getElementById('currentImagesGrid');
+        if (!grid) return;
+
+        if (images.length === 0) {
+            grid.innerHTML = '<p>No images uploaded yet.</p>';
+            return;
+        }
+
+        grid.innerHTML = images.map(image => `
+            <div class="image-item" data-filename="${image.filename}">
+                <img src="${image.path}" alt="${image.originalName}" style="max-width: 200px; max-height: 200px; object-fit: cover;">
+                <div class="image-info">
+                    <p><strong>Name:</strong> ${image.originalName}</p>
+                    <p><strong>Section:</strong> ${image.section}</p>
+                    <p><strong>Field:</strong> ${image.field}</p>
+                    <p><strong>Size:</strong> ${(image.size / 1024).toFixed(1)} KB</p>
+                    <p><strong>Uploaded:</strong> ${new Date(image.uploadedAt).toLocaleDateString()}</p>
+                </div>
+                <div class="image-actions">
+                    <button class="delete-image-btn" onclick="adminPanel.deleteImage('${image.filename}')">Delete</button>
+                    <button class="update-image-btn" onclick="adminPanel.showUpdateImageForm('${image.filename}')">Update</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    async deleteImage(filename) {
+        if (!this.token || !confirm('Are you sure you want to delete this image?')) return;
+
+        try {
+            const response = await fetch(`${this.apiBase}/admin/images/${filename}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${this.token}`
+                }
+            });
+
+            if (response.ok) {
+                this.showMessage('Image deleted successfully!', 'success');
+                this.loadCurrentImages(); // Reload the images
+            } else {
+                const data = await response.json();
+                this.showMessage(data.error || 'Failed to delete image', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting image:', error);
+            this.showMessage('Failed to delete image. Please try again.', 'error');
+        }
+    }
+
+    showUpdateImageForm(filename) {
+        // Simple prompt-based update for now
+        const newSection = prompt('Enter new section (hero, about, coffee, etc.):');
+        const newField = prompt('Enter new field name:');
+        
+        if (newSection && newField) {
+            this.updateImageMetadata(filename, newSection, newField);
+        }
+    }
+
+    async updateImageMetadata(filename, section, field) {
+        if (!this.token) return;
+
+        try {
+            const response = await fetch(`${this.apiBase}/admin/images/${filename}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.token}`
+                },
+                body: JSON.stringify({ section, field })
+            });
+
+            if (response.ok) {
+                this.showMessage('Image metadata updated successfully!', 'success');
+                this.loadCurrentImages(); // Reload the images
+            } else {
+                const data = await response.json();
+                this.showMessage(data.error || 'Failed to update image metadata', 'error');
+            }
+        } catch (error) {
+            console.error('Error updating image metadata:', error);
+            this.showMessage('Failed to update image metadata. Please try again.', 'error');
+        }
     }
 
     async loadContent() {
@@ -267,8 +414,66 @@ class AdminPanel {
     }
 
     async uploadImages() {
-        // Image upload functionality would go here
-        this.showMessage('Image upload functionality coming soon!', 'info');
+        if (!this.token) return;
+
+        const imageInputs = [
+            { id: 'heroImage', section: 'hero', field: 'background' },
+            { id: 'aboutImage', section: 'about', field: 'image' },
+            { id: 'lightRoastImage', section: 'coffee', field: 'light_roast_image' },
+            { id: 'mediumRoastImage', section: 'coffee', field: 'medium_roast_image' },
+            { id: 'darkRoastImage', section: 'coffee', field: 'dark_roast_image' }
+        ];
+
+        let uploadedCount = 0;
+        const errors = [];
+
+        for (const input of imageInputs) {
+            const fileInput = document.getElementById(input.id);
+            const file = fileInput.files[0];
+
+            if (file) {
+                try {
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    formData.append('section', input.section);
+                    formData.append('field', input.field);
+
+                    const response = await fetch(`${this.apiBase}/admin/upload-image`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${this.token}`
+                        },
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        uploadedCount++;
+                        this.showMessage(`${input.field} uploaded successfully!`, 'success');
+                        // Clear the file input
+                        fileInput.value = '';
+                        // Clear the preview
+                        const preview = document.getElementById(`${input.id}Preview`);
+                        if (preview) preview.innerHTML = '';
+                    } else {
+                        const data = await response.json();
+                        errors.push(`${input.field}: ${data.error || 'Upload failed'}`);
+                    }
+                } catch (error) {
+                    console.error(`Error uploading ${input.field}:`, error);
+                    errors.push(`${input.field}: Upload failed`);
+                }
+            }
+        }
+
+        if (uploadedCount > 0) {
+            this.showMessage(`${uploadedCount} image(s) uploaded successfully!`, 'success');
+            // Reload current images
+            this.loadCurrentImages();
+        }
+
+        if (errors.length > 0) {
+            this.showMessage(`Some uploads failed: ${errors.join(', ')}`, 'error');
+        }
     }
 
     async saveSettings() {
@@ -407,5 +612,5 @@ class AdminPanel {
 
 // Initialize the admin panel when the page loads
 document.addEventListener('DOMContentLoaded', () => {
-    new AdminPanel();
+    window.adminPanel = new AdminPanel();
 });

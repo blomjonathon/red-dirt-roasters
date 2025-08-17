@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Image Upload - Red Dirt Roasters</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+        .upload-form {
+            margin: 10px 0;
+        }
+        .upload-form input[type="file"] {
+            margin: 5px 0;
+        }
+        .upload-form button {
+            background: #8B4513;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .upload-form button:hover {
+            background: #A0522D;
+        }
+        .message {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Image Upload Functionality</h1>
+    
+    <div class="test-section">
+        <h2>Test Single Image Upload</h2>
+        <form class="upload-form" id="singleUploadForm">
+            <div>
+                <label>Select Image:</label>
+                <input type="file" id="testImage" accept="image/*" required>
+            </div>
+            <div>
+                <label>Section:</label>
+                <input type="text" id="testSection" value="test" required>
+            </div>
+            <div>
+                <label>Field:</label>
+                <input type="text" id="testField" value="test_image" required>
+            </div>
+            <button type="submit">Upload Test Image</button>
+        </form>
+        <div id="singleUploadResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Get Images</h2>
+        <button onclick="getImages()">Get All Images</button>
+        <div id="getImagesResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Website Content (including images)</h2>
+        <button onclick="getWebsiteContent()">Get Website Content</button>
+        <div id="websiteContentResult"></div>
+    </div>
+
+    <script>
+        // Test single image upload
+        document.getElementById('singleUploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('testImage');
+            const sectionInput = document.getElementById('testSection');
+            const fieldInput = document.getElementById('testField');
+            const resultDiv = document.getElementById('singleUploadResult');
+            
+            const file = fileInput.files[0];
+            if (!file) {
+                resultDiv.innerHTML = '<div class="message error">Please select a file</div>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('section', sectionInput.value);
+            formData.append('field', fieldInput.value);
+
+            try {
+                // Note: This will fail without authentication, but it tests the endpoint
+                const response = await fetch('/api/admin/upload-image', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<div class="message success">Upload successful! ${JSON.stringify(data)}</div>`;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `<div class="message error">Upload failed: ${errorData.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        });
+
+        // Test get images
+        async function getImages() {
+            const resultDiv = document.getElementById('getImagesResult');
+            
+            try {
+                const response = await fetch('/api/website/images');
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<div class="message success">Images retrieved: ${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `<div class="message error">Failed to get images: ${errorData.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        }
+
+        // Test get website content
+        async function getWebsiteContent() {
+            const resultDiv = document.getElementById('websiteContentResult');
+            
+            try {
+                const response = await fetch('/api/website/content');
+                if (response.ok) {
+                    const data = await response.json();
+                    resultDiv.innerHTML = `<div class="message success">Website content retrieved: ${JSON.stringify(data, null, 2)}</div>`;
+                } else {
+                    const errorData = await response.json();
+                    resultDiv.innerHTML = `<div class="message error">Failed to get content: ${errorData.error || 'Unknown error'}</div>`;
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `<div class="message error">Error: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

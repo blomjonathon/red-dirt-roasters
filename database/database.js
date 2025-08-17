@@ -319,15 +319,27 @@ async function updateContent(section, updates) {
         let updatedCount = 0;
         
         for (const [field, value] of Object.entries(updates)) {
-            const result = await client.query(`
-                INSERT INTO website_content (section, field, value) 
-                VALUES ($1, $2, $3)
-                ON CONFLICT (section, field) 
-                DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
-                RETURNING id
-            `, [section, field, value]);
-            
-            if (result.rows.length > 0) updatedCount++;
+            if (value === null) {
+                // Handle deletion by removing the field
+                const result = await client.query(`
+                    DELETE FROM website_content 
+                    WHERE section = $1 AND field = $2
+                    RETURNING id
+                `, [section, field]);
+                
+                if (result.rows.length > 0) updatedCount++;
+            } else {
+                // Handle insertion/update
+                const result = await client.query(`
+                    INSERT INTO website_content (section, field, value) 
+                    VALUES ($1, $2, $3)
+                    ON CONFLICT (section, field) 
+                    DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
+                    RETURNING id
+                `, [section, field, value]);
+                
+                if (result.rows.length > 0) updatedCount++;
+            }
         }
         
         client.release();

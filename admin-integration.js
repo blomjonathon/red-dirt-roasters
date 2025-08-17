@@ -279,7 +279,77 @@ function updateWebsiteContent() {
 
 // Update website images
 function updateImages() {
-    // Hero background image
+    // Check if we have images from the database
+    if (websiteData.images && Array.isArray(websiteData.images)) {
+        websiteData.images.forEach(image => {
+            // Hero background image
+            if (image.section === 'hero' && image.field === 'background') {
+                const heroSection = document.querySelector('.hero');
+                if (heroSection) {
+                    heroSection.style.backgroundImage = `url(${image.path})`;
+                    heroSection.style.backgroundSize = 'cover';
+                    heroSection.style.backgroundPosition = 'center';
+                }
+            }
+            
+            // About section image
+            if (image.section === 'about' && image.field === 'image') {
+                const aboutSection = document.querySelector('.about');
+                if (aboutSection) {
+                    // Create image element if it doesn't exist
+                    let aboutImg = aboutSection.querySelector('.about-image');
+                    if (!aboutImg) {
+                        aboutImg = document.createElement('div');
+                        aboutImg.className = 'about-image';
+                        aboutImg.style.cssText = `
+                            width: 300px;
+                            height: 300px;
+                            background-image: url(${image.path});
+                            background-size: cover;
+                            background-position: center;
+                            border-radius: 15px;
+                            margin: 2rem auto;
+                        `;
+                        aboutSection.querySelector('.about-content').appendChild(aboutImg);
+                    } else {
+                        aboutImg.style.backgroundImage = `url(${image.path})`;
+                    }
+                }
+            }
+            
+            // Coffee product images
+            if (image.section === 'coffee') {
+                if (image.field === 'light_roast_image') {
+                    const lightRoastImg = document.querySelector('.light-roast');
+                    if (lightRoastImg) {
+                        lightRoastImg.style.backgroundImage = `url(${image.path})`;
+                        lightRoastImg.style.backgroundSize = 'cover';
+                        lightRoastImg.style.backgroundPosition = 'center';
+                    }
+                }
+                
+                if (image.field === 'medium_roast_image') {
+                    const mediumRoastImg = document.querySelector('.medium-roast');
+                    if (mediumRoastImg) {
+                        mediumRoastImg.style.backgroundImage = `url(${image.path})`;
+                        mediumRoastImg.style.backgroundSize = 'cover';
+                        mediumRoastImg.style.backgroundPosition = 'center';
+                    }
+                }
+                
+                if (image.field === 'dark_roast_image') {
+                    const darkRoastImg = document.querySelector('.dark-roast');
+                    if (darkRoastImg) {
+                        darkRoastImg.style.backgroundImage = `url(${image.path})`;
+                        darkRoastImg.style.backgroundSize = 'cover';
+                        darkRoastImg.style.backgroundPosition = 'center';
+                    }
+                }
+            }
+        });
+    }
+    
+    // Fallback to old image system for backward compatibility
     if (websiteData.heroImage) {
         const heroSection = document.querySelector('.hero');
         if (heroSection) {
@@ -289,11 +359,9 @@ function updateImages() {
         }
     }
     
-    // About section image
     if (websiteData.aboutImage) {
         const aboutSection = document.querySelector('.about');
         if (aboutSection) {
-            // Create image element if it doesn't exist
             let aboutImg = aboutSection.querySelector('.about-image');
             if (!aboutImg) {
                 aboutImg = document.createElement('div');
@@ -314,7 +382,6 @@ function updateImages() {
         }
     }
     
-    // Coffee product images
     if (websiteData.lightRoastImage) {
         const lightRoastImg = document.querySelector('.light-roast');
         if (lightRoastImg) {

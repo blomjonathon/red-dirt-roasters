@@ -22,6 +22,25 @@ router.get('/content', async (req, res) => {
             }
         }
 
+        // Get images
+        try {
+            const images = await getContentBySection('images');
+            if (Object.keys(images).length > 0) {
+                const imageList = [];
+                for (const [field, imageData] of Object.entries(images)) {
+                    try {
+                        const parsed = JSON.parse(imageData);
+                        imageList.push(parsed);
+                    } catch (e) {
+                        console.warn(`Failed to parse image data for ${field}:`, e);
+                    }
+                }
+                allContent.images = imageList;
+            }
+        } catch (error) {
+            console.warn('Failed to get images:', error.message);
+        }
+
         res.json({ content: allContent });
     } catch (error) {
         console.error('Get public content error:', error);
@@ -138,6 +157,32 @@ router.get('/settings', async (req, res) => {
         res.json({ section: 'settings', content });
     } catch (error) {
         console.error('Get settings error:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// Get images for website display
+router.get('/images', async (req, res) => {
+    try {
+        const { section } = req.query;
+        const images = await getContentBySection('images');
+        const imageList = [];
+        
+        for (const [field, imageData] of Object.entries(images)) {
+            try {
+                const parsed = JSON.parse(imageData);
+                // If section is specified, only return images for that section
+                if (!section || parsed.section === section) {
+                    imageList.push(parsed);
+                }
+            } catch (e) {
+                console.warn(`Failed to parse image data for ${field}:`, e);
+            }
+        }
+        
+        res.json({ images: imageList });
+    } catch (error) {
+        console.error('Get website images error:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 });

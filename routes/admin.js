@@ -1,8 +1,46 @@
 const express = require('express');
 const { body, validationResult } = require('express-validator');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 const { getContentBySection, updateContent } = require('../database/database');
 
 const router = express.Router();
+
+// Configure multer for image uploads
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const uploadDir = path.join(__dirname, '../uploads');
+        // Create uploads directory if it doesn't exist
+        if (!fs.existsSync(uploadDir)) {
+            fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+        // Generate unique filename with timestamp
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+        const ext = path.extname(file.originalname);
+        cb(null, file.fieldname + '-' + uniqueSuffix + ext);
+    }
+});
+
+const fileFilter = (req, file, cb) => {
+    // Allow only image files
+    if (file.mimetype.startsWith('image/')) {
+        cb(null, true);
+    } else {
+        cb(new Error('Only image files are allowed!'), false);
+    }
+};
+
+const upload = multer({ 
+    storage: storage,
+    fileFilter: fileFilter,
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    }
+});
 
 // Middleware to check if user is authenticated
 function authenticateToken(req, res, next) {
@@ -203,6 +241,179 @@ router.get('/dashboard', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Dashboard error:', error);
         res.status(500).json({ error: 'Failed to fetch dashboard data' });
+    }
+});
+
+// Upload new image
+router.post('/upload-image', authenticateToken, upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No image file provided' });
+        }
+
+        const imageData = {
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            path: `/uploads/${req.file.filename}`,
+            size: req.file.size,
+            mimetype: req.file.mimetype,
+            uploadedAt: new Date().toISOString(),
+            section: req.body.section || 'general',
+            field: req.body.field || 'image'
+        };
+
+        // Save image metadata to database
+        await updateContent('images', {
+            [imageData.field]: JSON.stringify(imageData)
+        });
+
+        res.json({ 
+            message: 'Image uploaded successfully',
+            image: imageData
+        });
+    } catch (error) {
+        console.error('Image upload error:', error);
+        res.status(500).json({ error: 'Failed to upload image' });
+    }
+});
+
+// Get all uploaded images
+router.get('/images', authenticateToken, async (req, res) => {
+    try {
+        const images = await getContentBySection('images');
+        const imageList = [];
+        
+        for (const [field, imageData] of Object.entries(images)) {
+            try {
+                const parsed = JSON.parse(imageData);
+                imageList.push(parsed);
+            } catch (e) {
+                console.warn(`Failed to parse image data for ${field}:`, e);
+            }
+        }
+        
+        res.json({ images: imageList });
+    } catch (error) {
+        console.error('Get images error:', error);
+        res.status(500).json({ error: 'Failed to fetch images' });
+    }
+});
+
+// Delete image
+router.delete('/images/:filename', authenticateToken, async (req, res) => {
+    try {
+        const { filename } = req.params;
+        const images = await getContentBySection('images');
+        
+        let deletedField = null;
+        for (const [field, imageData] of Object.entries(images)) {
+            try {
+                const parsed = JSON.parse(imageData);
+                if (parsed.filename === filename) {
+                    deletedField = field;
+                    break;
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+        
+        if (!deletedField) {
+            return res.status(404).json({ error: 'Image not found' });
+        }
+        
+        // Remove from database
+        await updateContent('images', { [deletedField]: null });
+        
+        // Delete file from filesystem
+        const filePath = path.join(__dirname, '../uploads', filename);
+        if (fs.existsSync(filePath)) {
+            fs.unlinkSync(filePath);
+        }
+        
+        res.json({ message: 'Image deleted successfully' });
+    } catch (error) {
+        console.error('Delete image error:', error);
+        res.status(500).json({ error: 'Failed to delete image' });
+    }
+});
+
+// Update image metadata (e.g., change section/field assignment)
+router.put('/images/:filename', authenticateToken, [
+    body('section').optional().isString(),
+    body('field').optional().isString()
+], async (req, res) => {
+    try {
+        const errors = validationResult(req);
+        if (!errors.isEmpty()) {
+            return res.status(400).json({ errors: errors.array() });
+        }
+
+        const { filename } = req.params;
+        const { section, field } = req.body;
+        const images = await getContentBySection('images');
+        
+        let imageField = null;
+        let imageData = null;
+        
+        for (const [fieldName, data] of Object.entries(images)) {
+            try {
+                const parsed = JSON.parse(data);
+                if (parsed.filename === filename) {
+                    imageField = fieldName;
+                    imageData = parsed;
+                    break;
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+        
+        if (!imageField || !imageData) {
+            return res.status(404).json({ error: 'Image not found' });
+        }
+        
+        // Update metadata
+        if (section) imageData.section = section;
+        if (field) imageData.field = field;
+        
+        // Save updated metadata
+        await updateContent('images', {
+            [imageField]: JSON.stringify(imageData)
+        });
+        
+        res.json({ 
+            message: 'Image metadata updated successfully',
+            image: imageData
+        });
+    } catch (error) {
+        console.error('Update image error:', error);
+        res.status(500).json({ error: 'Failed to update image metadata' });
+    }
+});
+
+// Get images by section
+router.get('/images/section/:section', authenticateToken, async (req, res) => {
+    try {
+        const { section } = req.params;
+        const images = await getContentBySection('images');
+        const sectionImages = [];
+        
+        for (const [field, imageData] of Object.entries(images)) {
+            try {
+                const parsed = JSON.parse(imageData);
+                if (parsed.section === section) {
+                    sectionImages.push(parsed);
+                }
+            } catch (e) {
+                continue;
+            }
+        }
+        
+        res.json({ images: sectionImages });
+    } catch (error) {
+        console.error('Get section images error:', error);
+        res.status(500).json({ error: 'Failed to fetch section images' });
     }
 });
 
